@@ -5,7 +5,7 @@ Native standalone VR for Quest 3, with separate saves and settings from the PC v
 - **[Install and play](INSTALL.md)** — concise setup using the release APK and your own ROM.
 - **[Manual installation and save backups](MANUAL.md)** — ADB/Python alternative.
 - **[Build from source](BUILDING.md)** — toolchain and dependency setup.
-- **[Latest release](https://github.com/LiquidAzir/animal-crossing-vr/releases/latest)** — the Quest zip includes the APK and Windows installer.
+- **[Latest release](https://github.com/LiquidAzir/animal-crossing-vr/releases/latest)** — standalone Quest APK. Import your own `.rvz`, `.iso`, `.gcm`, or `.ciso` from the headset's file picker.
 
 The current runtime is APK build **14**, package `com.liquidazir.animalcrossingquest`, displayed as **Animal Crossing**. Existing installations update in place. The public package uses the same tested runtime; installation helpers do not change gameplay or graphics.
 
