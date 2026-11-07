@@ -117,7 +117,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
-          python quest/tools/build_quest.py --mode game --abi arm64-v8a --jobs 4 --version 15
+          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 15
           if ($LASTEXITCODE -ne 0) { throw 'Quest APK build failed.' }
 
       - name: Stage APK and build receipt
@@ -128,7 +128,7 @@ jobs:
           $apkDir = Join-Path $workspace 'build\game-arm64\apk'
           $stage = Join-Path $env:GITHUB_WORKSPACE 'quest-apk-artifact'
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item (Join-Path $apkDir 'AnimalCrossingQuest-arm64-v8a.apk') (Join-Path $stage 'AnimalCrossing-Quest.apk')
+          Copy-Item (Join-Path $apkDir 'AnimalCrossingQuest-armeabi-v7a.apk') (Join-Path $stage 'AnimalCrossing-Quest.apk')
           Copy-Item (Join-Path $apkDir 'package-receipt.json') $stage
           Get-FileHash (Join-Path $stage 'AnimalCrossing-Quest.apk') -Algorithm SHA256 | Format-List | Out-String | Set-Content (Join-Path $stage 'APK-SHA256.txt')
 
