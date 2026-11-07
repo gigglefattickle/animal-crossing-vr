@@ -31,8 +31,8 @@ class ReleaseTests(unittest.TestCase):
                  'classes.dex': b'dex', 'assets/quest-settings.ini': b'defaults',
                  'assets/shaders/default.vert': b'vertex', 'assets/shaders/default.frag': b'fragment'}
         header = bytearray(20)
-        header[:6] = b'\x7fELF\x01\x01'
-        header[18] = 40
+        header[:6] = b'\x7fELF\x02\x01'
+        header[18:20] = (183).to_bytes(2, 'little')
         self.libs = {name: bytes(header) + name.encode() for name in release.LIBRARIES}
         names.update(('lib/' + release.ABI + '/' + name, data) for name, data in self.libs.items())
         with zipfile.ZipFile(self.apk, 'w') as archive:
