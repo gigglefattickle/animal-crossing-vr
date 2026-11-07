@@ -17,7 +17,7 @@ import zipfile
 SOURCE = Path(__file__).resolve().parents[2]
 WORKSPACE = SOURCE.parent
 PACKAGE = 'com.liquidazir.animalcrossingquest'
-ABI = 'arm64-v8a'
+ABI = 'armeabi-v7a'
 APP_LABEL = 'Animal Crossing'
 LIBRARIES = ('libmain.so', 'libSDL2.so', 'libopenxr_loader.so')
 LICENSES = (
@@ -68,9 +68,9 @@ def validate_apk(apk, receipt_path, expected_version):
             raise ValueError('APK ZIP integrity check failed')
         for name in LIBRARIES:
             data = archive.read('lib/' + ABI + '/' + name)
-            if (len(data) < 20 or data[:4] != b'\x7fELF' or data[4:6] != b'\x02\x01' or
-                    int.from_bytes(data[18:20], 'little') != 183):
-                raise ValueError(name + ' is not an ARM64 little-endian library')
+            if (len(data) < 20 or data[:4] != b'\x7fELF' or data[4:6] != b'\x01\x01' or
+                    int.from_bytes(data[18:20], 'little') != 40):
+                raise ValueError(name + ' is not an ARM32 little-endian library')
             if hashlib.sha256(data).hexdigest() != receipt['libraries'][name]:
                 raise ValueError(name + ' differs from the verified build receipt')
     return receipt, apk_hash
@@ -169,7 +169,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', required=True, help='Release label, e.g. v0.9.3-vr20')
     parser.add_argument('--apk', type=Path,
-                        default=WORKSPACE / 'build/game-arm64/apk/AnimalCrossingQuest-arm64-v8a.apk')
+                        default=WORKSPACE / 'build/game-arm32/apk/AnimalCrossingQuest-armeabi-v7a.apk')
     parser.add_argument('--receipt', type=Path, help='Verified package-receipt.json (defaults beside APK)')
     parser.add_argument('--expected-version-code', type=int, default=14)
     parser.add_argument('--check', action='store_true', help='Validate only; write no release or staging files')
