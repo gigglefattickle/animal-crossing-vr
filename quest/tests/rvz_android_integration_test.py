@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Regression checks for RVZ support in the standalone Quest Android build."""
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,7 +30,7 @@ class QuestRvzIntegrationTests(unittest.TestCase):
         self.assertIn("target_link_libraries(ac_pc SDL2::SDL2 openxr_loader ${ACVR_ZSTD_TARGET}", self.pc_cmake)
 
     def test_native_disc_loader_routes_rvz_reads(self):
-        self.assertIn('memcmp(hdr, "RVZ\\\\1", 4)', self.disc)
+        self.assertIn('memcmp(hdr, "RVZ\\1", 4)', self.disc)
         self.assertIn("acvr_rvz_open(path)", self.disc)
         self.assertIn("acvr_rvz_read(df->rvz_handle, offset, dest, size)", self.disc)
         self.assertIn("acvr_rvz_close(df->rvz_handle)", self.disc)
