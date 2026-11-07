@@ -1,15 +1,17 @@
 # Manual Quest setup and save backups
 
-The Windows installer is the simplest route. These commands are for users with **ADB and Python 3** already installed, including macOS/Linux. `device_data.py` is included in the Quest zip.
+The normal setup is entirely on the headset: open Animal Crossing, choose **Choose Game File**, and select your own **USA Rev 0 / GAFE01** disc image. The in-app picker imports **.rvz, .iso, .gcm, and .ciso** files into the app's private storage.
 
-Enable Developer Mode and authorize USB debugging first. Run `adb devices`, replace `YOUR_QUEST_SERIAL` below, and close Animal Crossing on the headset. Use your own **USA Rev 0 / GAFE01_00** ISO, GCM, or CISO.
+The optional ADB helper is for users who prefer transferring files over USB or backing up saves. It supports importing **.rvz, .ciso, .iso, and .gcm** images and **.gci** saves. It requires ADB and Python 3.
+
+Enable Developer Mode and authorize USB debugging first. Run `adb devices`, replace `YOUR_QUEST_SERIAL` below, and close Animal Crossing on the headset:
 
 ```sh
 adb -s YOUR_QUEST_SERIAL install -r AnimalCrossing-Quest.apk
-python3 device_data.py --adb /path/to/adb --serial YOUR_QUEST_SERIAL --rom /path/to/AnimalCrossing.iso
+python3 device_data.py --adb /path/to/adb --serial YOUR_QUEST_SERIAL --rom /path/to/AnimalCrossing.rvz
 ```
 
-Then open **Animal Crossing** from Unknown Sources. When using the separate APK download, substitute its downloaded filename in the install command. The helper creates private app directories under the correct owner and verifies the transfer; do not copy ROMs into Android/data with a file manager.
+Use the actual extension of your file. The helper copies the selected image into the app's private `files/rom` directory and verifies the transferred byte count and SHA-256 hash. It does not convert formats; the native game loader reads RVZ directly. Then open **Animal Crossing** from the headset's app library.
 
 ## Back up or copy a save (optional)
 
