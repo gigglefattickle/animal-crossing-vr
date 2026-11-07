@@ -26,6 +26,12 @@ set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_API_LAYERS OFF CACHE BOOL "" FORCE)
 set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE)
 add_subdirectory("${QUEST_OPENXR_ROOT}" "openxr")
+# The OpenXR loader contains C++ (including Android JNI wrappers). The NDK
+# toolchain flag alone is not propagated to this shared target on Windows
+# runners, so explicitly link the static libc++ runtime.
+if(ANDROID)
+    target_link_libraries(openxr_loader PRIVATE c++_static)
+endif()
 include_directories("${QUEST_OPENXR_ROOT}/include")
 option(QUEST_BUILD_GAME "Build the full game instead of the XR bootstrap" ON)
 if(QUEST_BUILD_GAME)
