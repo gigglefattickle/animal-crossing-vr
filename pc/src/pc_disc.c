@@ -62,7 +62,7 @@ static int disc_open(DiscFile* df, const char* path) {
     if (!df->fp) return 0;
 
     /* RVZ stays compressed; logical sectors are decoded on demand. */
-    if (fread(hdr, 1, 4, df->fp) == 4 && memcmp(hdr, "RVZ\\1", 4) == 0) {
+    if (fread(hdr, 1, 4, df->fp) == 4 && memcmp(hdr, "RVZ\1", 4) == 0) {
         fclose(df->fp);
         df->fp = NULL;
         df->rvz_handle = acvr_rvz_open(path);
