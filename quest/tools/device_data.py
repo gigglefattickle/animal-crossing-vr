@@ -172,8 +172,8 @@ def main():
         parser.error('Specify --rom, --save, or --export-save')
     imports = []
     if args.rom:
-        if args.rom.suffix.lower() not in ('.ciso', '.iso', '.gcm'):
-            parser.error('--rom must be a .ciso, .iso, or .gcm file')
+        if args.rom.suffix.lower() not in ('.rvz', '.ciso', '.iso', '.gcm'):
+            parser.error('--rom must be a .rvz, .ciso, .iso, or .gcm file')
         imports.append((args.rom, 'files/rom/AnimalCrossing' + args.rom.suffix.lower()))
     for save in args.save:
         if save.suffix.lower() != '.gci':
