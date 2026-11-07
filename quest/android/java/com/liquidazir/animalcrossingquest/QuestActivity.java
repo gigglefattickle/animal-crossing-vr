@@ -1,6 +1,7 @@
 package com.liquidazir.animalcrossingquest;
 
 import android.os.Bundle;
+import android.system.Os;
 import android.util.Log;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,6 +21,13 @@ public class QuestActivity extends SDLActivity {
         return new String[] { "--vr", "--verbose" };
     }
     @Override protected void onCreate(Bundle state) {
+        try {
+            // The native disc layer searches ./rom. Make the app-private files
+            // directory the process working directory before SDL starts.
+            Os.chdir(getFilesDir().getAbsolutePath());
+        } catch (Exception error) {
+            Log.e("ACQuest", "Setting app-private working directory", error);
+        }
         try {
             File root = getFilesDir();
             if (root == null) throw new java.io.IOException("App storage unavailable");
