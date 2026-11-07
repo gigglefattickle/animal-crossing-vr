@@ -68,6 +68,20 @@ class Transfers(unittest.TestCase):
         self.remote = 'files/save/card_a/sample.gci'
         self.device = FakeDevice()
 
+    def test_rvz_import_cli_uses_private_rom_path(self):
+        source = self.folder / 'AnimalCrossing.rvz'
+        source.write_bytes(b'RVZ\\x01' + b'fixture')
+        device = Mock()
+        device.import_file.return_value = {'action': 'imported'}
+        with patch.object(data, 'Device', return_value=device), \\
+                patch.object(sys, 'argv', ['device_data.py', '--serial', 'TEST_QUEST',
+                                          '--adb', 'test-adb', '--rom', str(source)]), \\
+                patch('builtins.print'):
+            data.main()
+        device.ensure_stopped.assert_called_once_with()
+        device.import_file.assert_called_once_with(
+            source, 'files/rom/AnimalCrossing.rvz')
+
     def test_binary_import_and_identical_retry(self):
         self.assertEqual(self.device.import_file(self.source, self.remote)['action'], 'imported')
         self.assertEqual(self.device.files, {self.remote: self.payload})
