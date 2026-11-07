@@ -175,16 +175,20 @@ public final class SetupActivity extends Activity {
             throw new IllegalArgumentException("The selected file is too small to be a GameCube disc image.");
         }
         if (extension.equals(".rvz")) {
-            byte[] magic = new byte[4];
+            byte[] containerMagic = new byte[4];
+            byte[] discMagic = new byte[4];
             byte[] id = new byte[6];
             try (RandomAccessFile file = new RandomAccessFile(temporary, "r")) {
-                file.readFully(magic);
+                file.readFully(containerMagic);
                 file.seek(0x58);
                 file.readFully(id);
                 file.seek(0x74);
-                file.readFully(magic);
+                file.readFully(discMagic);
             }
-            if (magic[0] != (byte)0xc2 || magic[1] != 0x33 || magic[2] != (byte)0x9f || magic[3] != 0x3d) {
+            if (containerMagic[0] != 'R' || containerMagic[1] != 'V' ||
+                    containerMagic[2] != 'Z' || containerMagic[3] != 1 ||
+                    discMagic[0] != (byte)0xc2 || discMagic[1] != 0x33 ||
+                    discMagic[2] != (byte)0x9f || discMagic[3] != 0x3d) {
                 temporary.delete();
                 throw new IllegalArgumentException("The RVZ disc header is invalid.");
             }
