@@ -19,6 +19,9 @@ jobs:
   build-quest-apk:
     runs-on: windows-2022
     timeout-minutes: 120
+    env:
+      ANDROID_HOME: C:\Android\android-sdk
+      ANDROID_SDK_ROOT: C:\Android\android-sdk
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -38,13 +41,11 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Prepare pinned Android and native toolchain
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          if (-not (Test-Path $env:ANDROID_HOME)) { throw "Android SDK not found at $env:ANDROID_HOME" }
           $workspace = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing'
           $toolchain = Join-Path $workspace 'toolchain'
           $thirdParty = Join-Path $workspace 'third_party'
@@ -55,7 +56,10 @@ jobs:
           $sdkLink = Join-Path $toolchain 'sdk'
           if (-not (Test-Path $sdkLink)) { New-Item -ItemType Junction -Path $sdkLink -Target $env:ANDROID_HOME | Out-Null }
 
-          $sdkmanager = Join-Path $env:ANDROID_HOME 'cmdline-tools\latest\bin\sdkmanager.bat'
+          $sdkmanager = Get-ChildItem (Join-Path $env:ANDROID_HOME 'cmdline-tools') -Filter 'sdkmanager.bat' -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $sdkmanager) { throw 'Android sdkmanager.bat was not found.' }
+          1..20 | ForEach-Object { 'y' } | & $sdkmanager "--sdk_root=$sdkLink" --licenses
+          if ($LASTEXITCODE -ne 0) { throw 'Android SDK license acceptance failed.' }
           & $sdkmanager "--sdk_root=$sdkLink" 'platform-tools' 'platforms;android-34' 'build-tools;35.0.0' 'ndk;27.3.13750724'
           if ($LASTEXITCODE -ne 0) { throw 'Android SDK package installation failed.' }
 
