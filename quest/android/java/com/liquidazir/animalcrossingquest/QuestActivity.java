@@ -20,6 +20,7 @@ public class QuestActivity extends SDLActivity {
         return new String[] { "--vr", "--verbose" };
     }
     @Override protected void onCreate(Bundle state) {
+        Diagnostics.record(this, "quest_activity.onCreate_entered");
         try {
             File root = getFilesDir();
             if (root == null) throw new java.io.IOException("App storage unavailable");
@@ -30,6 +31,7 @@ public class QuestActivity extends SDLActivity {
             Log.e("ACQuest", "Preparing app storage", error);
         }
         super.onCreate(state);
+        Diagnostics.record(this, "quest_activity.super_onCreate_returned");
     }
     private void copyAsset(String source, File destination, boolean replace) throws Exception {
         if (!replace && destination.exists()) return;
