@@ -97,8 +97,11 @@ controller haptics.
 `pc/src/pc_fp_camera.c` runs the first-person camera as a small state machine
 hooked into `Camera2_SetView` (src/game/m_camera2.c): when active it replaces
 the game's eye/at/up with a first-person view at the player's head, redirects
-stick movement to the view yaw (`getCamera2AngleY`), and hides the player
-model (src/game/m_player_draw.c_inc) while keeping its shadow. NORMAL, WADE,
+stick movement to the view yaw (`getCamera2AngleY`). Flat first person hides
+the player model while keeping its shadow; tracked VR first person keeps the
+original villager skeleton visible and animated, suppressing only head joint
+24 because the HMD camera sits inside it. All skeleton callbacks still run,
+preserving tool/hand anchors, footsteps, effects and gameplay state. NORMAL, WADE,
 TALK, DOOR, and ITEM stay first person. Item presentations (fish, bugs, dug-up
 items) preserve the current gaze instead of cutting to the stock trophy view.
 Other scripted cameras — events, demos, previews — fall through to the stock
