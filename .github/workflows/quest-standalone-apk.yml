@@ -1,0 +1,136 @@
+name: Build standalone Quest APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'chatgpt/quest-standalone-upgrade-v2'
+    paths:
+      - 'quest/**'
+      - 'pc/**'
+      - 'src/**'
+      - 'include/**'
+      - '.github/workflows/quest-standalone-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-quest-apk:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          path: AnimalCrossing/source
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare pinned Android and native toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workspace = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing'
+          $toolchain = Join-Path $workspace 'toolchain'
+          $thirdParty = Join-Path $workspace 'third_party'
+          New-Item -ItemType Directory -Force -Path $toolchain, $thirdParty | Out-Null
+
+          $jdkLink = Join-Path $toolchain 'jdk-21'
+          if (-not (Test-Path $jdkLink)) { New-Item -ItemType Junction -Path $jdkLink -Target $env:JAVA_HOME | Out-Null }
+          $sdkLink = Join-Path $toolchain 'sdk'
+          if (-not (Test-Path $sdkLink)) { New-Item -ItemType Junction -Path $sdkLink -Target $env:ANDROID_HOME | Out-Null }
+
+          $sdkmanager = Join-Path $env:ANDROID_HOME 'cmdline-tools\latest\bin\sdkmanager.bat'
+          & $sdkmanager "--sdk_root=$sdkLink" 'platform-tools' 'platforms;android-34' 'build-tools;35.0.0' 'ndk;27.3.13750724'
+          if ($LASTEXITCODE -ne 0) { throw 'Android SDK package installation failed.' }
+
+          $ninjaDir = Join-Path $toolchain 'ninja-1.13.2'
+          New-Item -ItemType Directory -Force -Path $ninjaDir | Out-Null
+          $ninjaZip = Join-Path $env:RUNNER_TEMP 'ninja-win.zip'
+          Invoke-WebRequest -Uri 'https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win.zip' -OutFile $ninjaZip
+          Expand-Archive -LiteralPath $ninjaZip -DestinationPath $ninjaDir -Force
+
+          $cmake = (Get-Command cmake).Source
+          $paths = [ordered]@{
+            java_home = $jdkLink
+            sdk_root = $sdkLink
+            ndk_root = (Join-Path $sdkLink 'ndk\27.3.13750724')
+            ndk_cmake_toolchain = (Join-Path $sdkLink 'ndk\27.3.13750724\build\cmake\android.toolchain.cmake')
+            android_jar = (Join-Path $sdkLink 'platforms\android-34\android.jar')
+            build_tools = (Join-Path $sdkLink 'build-tools\35.0.0')
+            cmake = $cmake
+            ninja = (Join-Path $ninjaDir 'ninja.exe')
+            adb = (Join-Path $sdkLink 'platform-tools\adb.exe')
+          }
+          $paths | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $toolchain 'paths.json')
+
+          cmake --version
+          & (Join-Path $ninjaDir 'ninja.exe') --version
+          & (Join-Path $jdkLink 'bin\java.exe') -version
+
+      - name: Fetch pinned native dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $thirdParty = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\third_party'
+          git clone --branch release-2.30.10 --depth 1 https://github.com/libsdl-org/SDL.git (Join-Path $thirdParty 'SDL')
+          if ($LASTEXITCODE -ne 0) { throw 'SDL checkout failed.' }
+          git clone --branch release-1.1.63 --depth 1 https://github.com/KhronosGroup/OpenXR-SDK.git (Join-Path $thirdParty 'OpenXR-SDK')
+          if ($LASTEXITCODE -ne 0) { throw 'OpenXR SDK checkout failed.' }
+
+      - name: Run importer and release tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
+          python -m unittest quest.tests.package_release_test
+          if ($LASTEXITCODE -ne 0) { throw 'Quest release tests failed.' }
+
+      - name: Restore persistent APK signing key
+        uses: actions/cache@v4
+        with:
+          path: AnimalCrossing/source/quest/.local/debug.keystore
+          key: acvr-quest-apk-signing-key-v1
+
+      - name: Build and package Quest APK
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
+          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 15
+          if ($LASTEXITCODE -ne 0) { throw 'Quest APK build failed.' }
+
+      - name: Stage APK and build receipt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workspace = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing'
+          $apkDir = Join-Path $workspace 'build\game-arm32\apk'
+          $stage = Join-Path $env:GITHUB_WORKSPACE 'quest-apk-artifact'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item (Join-Path $apkDir 'AnimalCrossingQuest-armeabi-v7a.apk') (Join-Path $stage 'AnimalCrossing-Quest.apk')
+          Copy-Item (Join-Path $apkDir 'package-receipt.json') $stage
+          Get-FileHash (Join-Path $stage 'AnimalCrossing-Quest.apk') -Algorithm SHA256 | Format-List | Out-String | Set-Content (Join-Path $stage 'APK-SHA256.txt')
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimalCrossing-Quest-APK
+          path: quest-apk-artifact/*
+          if-no-files-found: error
+          retention-days: 30
