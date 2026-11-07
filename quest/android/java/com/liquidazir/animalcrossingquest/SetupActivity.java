@@ -17,6 +17,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 
 /**
@@ -201,9 +203,12 @@ public final class SetupActivity extends Activity {
             }
         }
 
-        if (!temporary.renameTo(destination)) {
+        try {
+            Files.move(temporary.toPath(), destination.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (Exception moveError) {
             temporary.delete();
-            throw new java.io.IOException("Could not finish installing the imported game.");
+            throw new java.io.IOException("Could not finish installing the imported game.", moveError);
         }
         File[] existing = dir.listFiles();
         if (existing != null) {
