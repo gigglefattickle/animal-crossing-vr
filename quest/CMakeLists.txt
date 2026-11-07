@@ -14,9 +14,11 @@ set(SDL_STATIC OFF CACHE BOOL "" FORCE)
 set(SDL_TEST OFF CACHE BOOL "" FORCE)
 set(SDL_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory("${QUEST_SDL_ROOT}" "sdl")
-# SDL Android HID sources include C++; force the shared library to link with the C++ driver.
+# SDL Android HID sources include C++; use the C++ driver and explicitly link
+# the NDK's static libc++ runtime into this shared library.
 if(TARGET SDL2)
     set_property(TARGET SDL2 PROPERTY LINKER_LANGUAGE CXX)
+    target_link_libraries(SDL2 PRIVATE c++_static)
 endif()
 set(BUILD_LOADER ON CACHE BOOL "" FORCE)
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
