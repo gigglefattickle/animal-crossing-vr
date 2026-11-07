@@ -389,7 +389,12 @@ set_source_files_properties(
     "${DECOMP_ROOT}/src/static/jaudio_NES/internal/jammain_2.c"
     # game64.c includes .c_inc with extern "C" (OSAttention.c_inc)
     "${DECOMP_ROOT}/src/static/jaudio_NES/game/game64.c"
-    PROPERTIES LANGUAGE CXX
+    PROPERTIES
+        LANGUAGE CXX
+        # These decomp files retain a .c suffix but contain C++ constructs.
+        # NDK clang on Windows otherwise infers C from the suffix even when
+        # CMake schedules the source as a CXX object.
+        COMPILE_FLAGS "-x c++"
 )
 
 # jaudio_NES C files use nullptr: define it as NULL for C compilation on PC.
