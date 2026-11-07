@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.View;
@@ -15,6 +16,11 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.BufferedWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
@@ -29,12 +35,15 @@ import java.util.Locale;
  */
 public final class SetupActivity extends Activity {
     private static final int PICK_GAME = 4107;
+    private static final int EXPORT_DIAGNOSTICS = 4108;
     private static final String TAG = "ACQuestSetup";
     private TextView status;
     private Button playButton;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        Diagnostics.installCrashHandler(this);
+        Diagnostics.record(this, "launcher.onCreate");
         render();
     }
 
@@ -90,6 +99,11 @@ public final class SetupActivity extends Activity {
         playButton.setOnClickListener(v -> launchGame());
         root.addView(playButton, buttonParams);
 
+        Button diagnosticsButton = new Button(this);
+        diagnosticsButton.setText("Export Diagnostics");
+        diagnosticsButton.setOnClickListener(v -> exportDiagnostics());
+        root.addView(diagnosticsButton, buttonParams);
+
         setContentView(root);
         refreshState();
     }
@@ -106,6 +120,58 @@ public final class SetupActivity extends Activity {
         }
     }
 
+    private void exportDiagnostics() {
+        Diagnostics.record(this, "launcher.export_diagnostics_requested");
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "AnimalCrossingQuest-diagnostics.txt");
+        startActivityForResult(intent, EXPORT_DIAGNOSTICS);
+    }
+
+    private void writeDiagnostics(Uri destination) {
+        try (OutputStream output = getContentResolver().openOutputStream(destination);
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(output, "UTF-8"))) {
+            if (output == null) throw new java.io.IOException("Could not open the selected export location.");
+            writer.write("Animal Crossing Quest - Diagnostics");
+            writer.newLine();
+            writer.write("Generated: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(new Date()));
+            writer.newLine();
+            writer.write("Package: " + getPackageName());
+            writer.newLine();
+            writer.write("App version: " + getPackageManager().getPackageInfo(getPackageName(), 0).versionName
+                    + " (" + getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode() + ")");
+            writer.newLine();
+            writer.write("Device: " + Build.MANUFACTURER + " " + Build.MODEL);
+            writer.newLine();
+            writer.write("Android: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+            writer.newLine();
+            writer.write("ABIs: " + java.util.Arrays.toString(Build.SUPPORTED_ABIS));
+            writer.newLine();
+            writer.write("App storage free bytes: " + getFilesDir().getUsableSpace());
+            writer.newLine();
+            File game = importedGame();
+            writer.write("Imported game: " + (game == null ? "not found" :
+                    game.getName() + ", " + game.length() + " bytes"));
+            writer.newLine();
+            writer.newLine();
+            writer.write("App event log (most recent activity first in chronological order):");
+            writer.newLine();
+            writer.write(Diagnostics.readEvents(this));
+            writer.newLine();
+            writer.write("Note: This export contains app/device metadata and app-generated breadcrumbs only. " +
+                    "It does not include the disc image, save files, headset account details, or full Android logcat. " +
+                    "A native process crash may require an additional Quest/ADB logcat capture.");
+            writer.newLine();
+            writer.flush();
+            Diagnostics.record(this, "launcher.diagnostics_exported");
+        } catch (Exception error) {
+            Log.e(TAG, "Diagnostics export failed", error);
+            Diagnostics.record(this, "launcher.diagnostics_export_failed " + Log.getStackTraceString(error));
+            if (status != null) status.setText("Diagnostics export failed: " + error.getMessage());
+        }
+    }
+
     private void chooseGame() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -118,6 +184,12 @@ public final class SetupActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == EXPORT_DIAGNOSTICS) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                writeDiagnostics(data.getData());
+            }
+            return;
+        }
         if (requestCode != PICK_GAME || resultCode != RESULT_OK || data == null || data.getData() == null) {
             refreshState();
             return;
@@ -252,6 +324,12 @@ public final class SetupActivity extends Activity {
             refreshState();
             return;
         }
-        startActivity(new Intent(this, QuestActivity.class));
+        Diagnostics.record(this, "launcher.play_pressed game=" + importedGame().getName());
+        try {
+            startActivity(new Intent(this, QuestActivity.class));
+        } catch (RuntimeException error) {
+            Diagnostics.record(this, "launcher.start_activity_failed " + Log.getStackTraceString(error));
+            throw error;
+        }
     }
 }
