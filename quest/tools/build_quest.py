@@ -48,7 +48,7 @@ def check_existing_cache(build, abi, game):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode', choices=['probe', 'game'], default='probe')
-    parser.add_argument('--abi', choices=['armeabi-v7a', 'arm64-v8a'], default='arm64-v8a')
+    parser.add_argument('--abi', choices=['armeabi-v7a', 'arm64-v8a'], default='armeabi-v7a')
     parser.add_argument('--build-dir', type=Path, help='Optional directory under ../build, resolved from the source root')
     parser.add_argument('--jobs', type=int, default=min(os.cpu_count() or 1, 8))
     parser.add_argument('--version', type=int, default=1, help='APK version code')
