@@ -34,7 +34,7 @@ class ReleaseTests(unittest.TestCase):
         header[:6] = b'\x7fELF\x01\x01'
         header[18] = 40
         self.libs = {name: bytes(header) + name.encode() for name in release.LIBRARIES}
-        names.update(('lib/armeabi-v7a/' + name, data) for name, data in self.libs.items())
+        names.update(('lib/' + release.ABI + '/' + name, data) for name, data in self.libs.items())
         with zipfile.ZipFile(self.apk, 'w') as archive:
             for name, data in names.items():
                 archive.writestr(name, data)
