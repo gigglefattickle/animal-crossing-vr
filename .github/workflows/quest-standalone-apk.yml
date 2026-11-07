@@ -103,8 +103,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
-          python -m unittest quest.tests.package_release_test
-          if ($LASTEXITCODE -ne 0) { throw 'Quest release tests failed.' }
+          python -m unittest quest.tests.package_release_test quest.tests.device_data_test quest.tests.rvz_android_integration_test
+          if ($LASTEXITCODE -ne 0) { throw 'Quest release, transfer, or RVZ integration tests failed.' }
 
       - name: Restore persistent APK signing key
         uses: actions/cache@v4
