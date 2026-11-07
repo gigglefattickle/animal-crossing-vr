@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include "types.h"
 #include "pc_disc.h"
+#include "rvz_reader.h"
 
 extern int g_pc_verbose;
 
@@ -27,6 +28,8 @@ static u32 le32(const u8* p) {
 typedef struct {
     FILE* fp;
     int is_ciso;
+    int is_rvz;
+    void* rvz_handle;
     u32 block_size;
     int num_blocks;
     int* block_phys; /* logical block -> physical block, -1 = absent */
@@ -58,6 +61,17 @@ static int disc_open(DiscFile* df, const char* path) {
     df->fp = fopen(path, "rb");
     if (!df->fp) return 0;
 
+    /* RVZ stays compressed; logical sectors are decoded on demand. */
+    if (fread(hdr, 1, 4, df->fp) == 4 && memcmp(hdr, "RVZ\\1", 4) == 0) {
+        fclose(df->fp);
+        df->fp = NULL;
+        df->rvz_handle = acvr_rvz_open(path);
+        if (!df->rvz_handle) return 0;
+        df->is_rvz = 1;
+        return 1;
+    }
+    fseek(df->fp, 0, SEEK_SET);
+
     /* try CISO */
     if (fread(hdr, 1, CISO_HDR_SIZE, df->fp) == CISO_HDR_SIZE &&
         le32(hdr) == CISO_MAGIC) {
@@ -80,11 +94,13 @@ static int disc_open(DiscFile* df, const char* path) {
 
 static void disc_close(DiscFile* df) {
     if (df->fp) fclose(df->fp);
+    if (df->rvz_handle) acvr_rvz_close(df->rvz_handle);
     if (df->block_phys) free(df->block_phys);
     memset(df, 0, sizeof(*df));
 }
 
 static int disc_read(DiscFile* df, u32 offset, void* dest, u32 size) {
+    if (df->is_rvz) return acvr_rvz_read(df->rvz_handle, offset, dest, size);
     if (!df->is_ciso) {
         fseek(df->fp, (long)offset, SEEK_SET);
         return (u32)fread(dest, 1, size, df->fp) == size;
@@ -294,7 +310,8 @@ static int find_disc_image(char* out_path, int out_sz) {
         struct dirent* ent;
         if (!dp) continue;
         while ((ent = readdir(dp)) != NULL) {
-            if (str_ends_ci(ent->d_name, ".ciso") ||
+            if (str_ends_ci(ent->d_name, ".rvz")  ||
+                str_ends_ci(ent->d_name, ".ciso") ||
                 str_ends_ci(ent->d_name, ".iso")  ||
                 str_ends_ci(ent->d_name, ".gcm")) {
                 if (strcmp(dirs[d], ".") == 0)
@@ -330,7 +347,7 @@ int pc_disc_init(void) {
         disc_read(&g_disc, 0, id, 6);
         id[6] = '\0';
         if (g_pc_verbose) printf("[PC] Disc image: %s (%s, %s)\n",
-            path, g_disc.is_ciso ? "CISO" : "ISO/GCM", id);
+            path, g_disc.is_rvz ? "RVZ" : (g_disc.is_ciso ? "CISO" : "ISO/GCM"), id);
     }
 
     /* cache DOL info */
