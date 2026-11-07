@@ -125,7 +125,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $workspace = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing'
-          $apkDir = Join-Path $workspace 'build\game-arm64\apk'
+          $apkDir = Join-Path $workspace 'build\game-arm32\apk'
           $stage = Join-Path $env:GITHUB_WORKSPACE 'quest-apk-artifact'
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item (Join-Path $apkDir 'AnimalCrossingQuest-armeabi-v7a.apk') (Join-Path $stage 'AnimalCrossing-Quest.apk')
