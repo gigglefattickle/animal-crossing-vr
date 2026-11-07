@@ -14,7 +14,7 @@ This is a clean rewrite of the Quest host, lifecycle, import/storage, VR integra
 - Native OpenXR stereo rendering, Quest Touch input, recentering, pause/resume, and robust headset lifecycle handling.
 - Full player body and tracked hands, reusing original character animation/state where technically possible.
 - A Wild World-inspired procedural sky that preserves weather and time-of-day transitions.
-- Reproducible ARM64 Quest 3 build, APK signing/verification, release receipt, and automated tests.
+- Reproducible Quest 3 APK build, APK signing/verification, release receipt, and automated tests. Keep the current ARM32 build as a compatibility baseline; make ARM64 a separate portability milestone because the game layer currently assumes 32-bit pointers.
 
 ## Architecture
 1. Android host — minimal Activity, lifecycle forwarding, SAF picker, permissions, and user-facing errors. Java/Kotlin owns Android APIs only.
@@ -62,7 +62,7 @@ This is a clean rewrite of the Quest host, lifecycle, import/storage, VR integra
 - Validate comfort, stereo correctness, and sustained Quest 3 performance.
 
 ### R5 — Release quality
-- Build ARM64 APK, run unit/packaging tests, verify manifest and signature, generate checksums and receipt.
+- Build and verify the Quest APK, run unit/packaging tests, verify manifest and signature, generate checksums and receipt. Promote ARM64 only after the decomp/JSystem pointer assumptions are removed and tested.
 - Test clean install, update install, import, save persistence, suspend/resume, and gameplay on Quest 3.
 - Publish APK only after all automated gates pass; distinguish build success from headset verification.
 
