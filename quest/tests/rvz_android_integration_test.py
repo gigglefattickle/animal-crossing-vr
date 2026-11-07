@@ -43,7 +43,9 @@ class QuestRvzIntegrationTests(unittest.TestCase):
     def test_android_imports_and_launches_rvz_from_private_storage(self):
         self.assertIn('lower.endsWith(".rvz")', self.setup)
         self.assertIn('extension = ".rvz"', self.setup)
-        self.assertIn('"RVZ"', self.setup)
+        # SetupActivity validates the four-byte RVZ signature as individual bytes.
+        for check in ("containerMagic[0] != 'R'", "containerMagic[1] != 'V'", "containerMagic[2] != 'Z'", "containerMagic[3] != 1"):
+            self.assertIn(check, self.setup)
         self.assertIn("GAFE01", self.setup)
         self.assertIn('getFilesDir(), "rom"', self.setup)
 
