@@ -69,6 +69,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/glad/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/fixnes
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/openvr
+    ${DECOMP_ROOT}/quest/rvz
     # .inc assets are loaded at runtime from disc image (no build/GAFE01_00 needed)
 )
 
@@ -307,11 +308,40 @@ set(PC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_stubs_cpp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_assets.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_disc.c
+    ${DECOMP_ROOT}/quest/rvz/rvz_reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_vr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_vr_hands.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_sky.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_fp_camera.c
 )
+# RVZ support uses a pinned static Zstandard build on Android so the APK
+# never relies on a system-provided libzstd. Desktop builds prefer system zstd.
+if(ANDROID)
+    set(ACVR_FETCH_ZSTD ON)
+else()
+    find_library(ZSTD_LIBRARY NAMES zstd)
+    if(ZSTD_LIBRARY)
+        set(ACVR_ZSTD_TARGET "${ZSTD_LIBRARY}")
+        set(ACVR_FETCH_ZSTD OFF)
+    else()
+        set(ACVR_FETCH_ZSTD ON)
+    endif()
+endif()
+if(ACVR_FETCH_ZSTD)
+    include(FetchContent)
+    set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_STATIC ON CACHE BOOL "" FORCE)
+    set(ZSTD_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(ZSTD_MULTITHREAD_SUPPORT OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(zstd
+        URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+        SOURCE_SUBDIR build/cmake
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    FetchContent_MakeAvailable(zstd)
+    set(ACVR_ZSTD_TARGET libzstd_static)
+endif()
+
 if(ANDROID)
     list(REMOVE_ITEM PC_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/pc_vr.cpp)
     list(APPEND PC_SOURCES
@@ -463,12 +493,21 @@ if(ANDROID)
     # for this mixed C/C++ target. Unlike clang++, it does not add the C++ ABI,
     # libc++, and unwinder automatically. Link the NDK static runtime explicitly
     # after the game and OpenXR dependencies so exceptions and RTTI resolve.
-    target_link_libraries(ac_pc SDL2::SDL2 openxr_loader GLESv3 EGL android log dl m c++_static c++abi unwind)
+    if(ACVR_FETCH_ZSTD)
+        target_include_directories(ac_pc PRIVATE "${zstd_SOURCE_DIR}/lib")
+    endif()
+    target_link_libraries(ac_pc SDL2::SDL2 openxr_loader ${ACVR_ZSTD_TARGET} GLESv3 EGL android log dl m c++_static c++abi unwind)
 elseif(TARGET SDL2::SDL2)
-    target_link_libraries(ac_pc glad SDL2::SDL2)
+    if(ACVR_FETCH_ZSTD)
+        target_include_directories(ac_pc PRIVATE "${zstd_SOURCE_DIR}/lib")
+    endif()
+    target_link_libraries(ac_pc glad SDL2::SDL2 ${ACVR_ZSTD_TARGET})
 else()
     list(FILTER SDL2_LIBRARIES EXCLUDE REGEX "SDL2main")
-    target_link_libraries(ac_pc glad ${SDL2_LIBRARIES})
+    if(ACVR_FETCH_ZSTD)
+        target_include_directories(ac_pc PRIVATE "${zstd_SOURCE_DIR}/lib")
+    endif()
+    target_link_libraries(ac_pc glad ${SDL2_LIBRARIES} ${ACVR_ZSTD_TARGET})
 endif()
 
 if(WIN32)
