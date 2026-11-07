@@ -30,7 +30,10 @@ add_subdirectory("${QUEST_OPENXR_ROOT}" "openxr")
 # toolchain flag alone is not propagated to this shared target on Windows
 # runners, so explicitly link the static libc++ runtime.
 if(ANDROID)
-    target_link_libraries(openxr_loader PRIVATE c++_static)
+    # The OpenXR loader is linked by the C compiler driver in this build.
+    # Explicitly include libc++'s ABI and unwinder archives as well as libc++;
+    # clang++ normally adds these automatically, but clang does not.
+    target_link_libraries(openxr_loader PRIVATE c++_static c++abi unwind)
 endif()
 include_directories("${QUEST_OPENXR_ROOT}/include")
 option(QUEST_BUILD_GAME "Build the full game instead of the XR bootstrap" ON)
