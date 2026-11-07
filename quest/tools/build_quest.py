@@ -48,7 +48,7 @@ def check_existing_cache(build, abi, game):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode', choices=['probe', 'game'], default='probe')
-    parser.add_argument('--abi', choices=['armeabi-v7a', 'arm64-v8a'], default='armeabi-v7a')
+    parser.add_argument('--abi', choices=['armeabi-v7a', 'arm64-v8a'], default='arm64-v8a')
     parser.add_argument('--build-dir', type=Path, help='Optional directory under ../build, resolved from the source root')
     parser.add_argument('--jobs', type=int, default=min(os.cpu_count() or 1, 8))
     parser.add_argument('--version', type=int, default=1, help='APK version code')
@@ -56,8 +56,6 @@ def main():
     parser.add_argument('--no-package', action='store_true')
     parser.add_argument('--dry-run', action='store_true', help='Validate inputs and print commands without writing/building')
     args = parser.parse_args()
-    if args.mode == 'game' and args.abi != 'armeabi-v7a':
-        parser.error('The full game currently requires ARM32; ARM64 is supported only for the OpenXR probe')
     if args.jobs < 1 or args.version < 1:
         parser.error('--jobs and --version must be positive')
     build_root = BUILD_ROOT.resolve()
