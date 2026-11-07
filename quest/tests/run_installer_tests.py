@@ -34,7 +34,7 @@ def disc(ciso=False, wrong_region=False, wrong_revision=False, rvz=False):
     if wrong_revision:
         raw[7] = 1
     if rvz:
-        raw[:4] = b'RVZ\\x01'
+        raw[:4] = b'RVZ\x01'
         raw[0x58:0x5e] = b'GAFE01'
         raw[0x74:0x78] = bytes.fromhex('c2339f3d')
     if ciso:
