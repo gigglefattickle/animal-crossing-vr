@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - 'chatgpt/quest-standalone-upgrade-v2'
+      - 'chatgpt/quest-standalone-rewrite'
     paths:
       - 'quest/**'
       - 'pc/**'
