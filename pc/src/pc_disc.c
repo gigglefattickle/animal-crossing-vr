@@ -6,6 +6,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <dirent.h>
+#ifdef __ANDROID__
+#include <SDL_system.h>
+#endif
 #include "types.h"
 #include "pc_disc.h"
 #include "rvz_reader.h"
@@ -302,8 +305,22 @@ static int str_ends_ci(const char* s, const char* suffix) {
 }
 
 static int find_disc_image(char* out_path, int out_sz) {
-    static const char* dirs[] = { ".", "orig", "rom", NULL };
+    const char* dirs[5] = { ".", "orig", "rom", NULL, NULL };
+    char app_rom_dir[512];
     int d;
+
+#ifdef __ANDROID__
+    /* SetupActivity imports the selected disc to getFilesDir()/rom.
+     * SDL exposes that private directory directly; do not depend on a
+     * process-wide chdir (which Android does not provide to Java apps). */
+    {
+        const char* internal = SDL_AndroidGetInternalStoragePath();
+        if (internal && internal[0]) {
+            snprintf(app_rom_dir, sizeof(app_rom_dir), "%s/rom", internal);
+            dirs[3] = app_rom_dir;
+        }
+    }
+#endif
 
     for (d = 0; dirs[d]; d++) {
         DIR* dp = opendir(dirs[d]);
