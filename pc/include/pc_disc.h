@@ -1,10 +1,10 @@
-/* pc_disc.h - GameCube disc image reader (CISO/ISO/GCM) */
+/* pc_disc.h - GameCube disc image reader (RVZ/CISO/ISO/GCM) */
 #ifndef PC_DISC_H
 #define PC_DISC_H
 
 #include "types.h"
 
-/* Initialize disc image reader. Searches for .ciso/.iso/.gcm in
+/* Initialize disc image reader. Searches for .rvz/.ciso/.iso/.gcm in
  * current dir, orig/, rom/. Parses GCM filesystem into lookup table.
  * Returns 1 on success, 0 if no disc image found. */
 int pc_disc_init(void);
