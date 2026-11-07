@@ -1,0 +1,5 @@
+Zstandard
+Copyright (c) Meta Platforms, Inc. and affiliates.
+
+This software may be used under the terms of the BSD license or the GPLv2 license.
+See https://github.com/facebook/zstd/blob/dev/LICENSE for the full license text.
