@@ -53,6 +53,22 @@ static int Player_actor_draw_Before_FirstPerson(GAME* game, cKF_SkeletonInfo_R_c
     *gfx_pp = NULL;
     return keep_chain;
 }
+
+/* In tracked VR, keep the original villager skeleton and its animation so
+ * the player can see their torso, legs and animated arms. The camera sits at
+ * eye height inside the head, so suppress only the head joint's surface to
+ * avoid rendering the inside of the face over the stereo view. The skeleton
+ * walk and all After callbacks still run, preserving hand/tool anchors,
+ * footsteps, effects and the original gameplay/collision state. */
+static int Player_actor_draw_Before_FirstPersonVR(GAME* game, cKF_SkeletonInfo_R_c* kf, int joint_no, Gfx** gfx_pp,
+                                                  u8* work_flag, void* arg, s_xyz* rot, xyz_t* pos) {
+    int keep_chain = Player_actor_draw_Before(game, kf, joint_no, gfx_pp, work_flag, arg, rot, pos);
+
+    if (joint_no == 24) { /* mPlayer head joint; body remains fully animated. */
+        *gfx_pp = NULL;
+    }
+    return keep_chain;
+}
 #endif
 
 static int Player_actor_draw_Before(GAME* game, cKF_SkeletonInfo_R_c* kf, int joint_no, Gfx** gfx_pp, u8* work_flag,
@@ -336,7 +352,10 @@ static void Player_actor_draw_Normal(ACTOR* actorx, GAME* game) {
 
 #ifdef TARGET_PC
     cKF_Si3_draw_R_SV(game, kf, mtx,
-                      pc_fp_hide_player() ? &Player_actor_draw_Before_FirstPerson : &Player_actor_draw_Before,
+                      pc_fp_hide_player()
+                          ? (pc_vr_active() ? &Player_actor_draw_Before_FirstPersonVR
+                                           : &Player_actor_draw_Before_FirstPerson)
+                          : &Player_actor_draw_Before,
                       &Player_actor_draw_After, player);
 #else
     cKF_Si3_draw_R_SV(game, kf, mtx, &Player_actor_draw_Before, &Player_actor_draw_After, player);
