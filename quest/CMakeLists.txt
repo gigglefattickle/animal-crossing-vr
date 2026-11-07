@@ -13,13 +13,14 @@ set(SDL_SHARED ON CACHE BOOL "" FORCE)
 set(SDL_STATIC OFF CACHE BOOL "" FORCE)
 set(SDL_TEST OFF CACHE BOOL "" FORCE)
 set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+# Quest controller input is provided by OpenXR. SDL's Android HIDAPI backend
+# adds a standalone C++ HID manager that SDL's Android shared target does not
+# link with the NDK C++ runtime in this configuration. Disable that unused
+# backend rather than carrying a broken extra dependency into the APK.
+set(SDL_HIDAPI OFF CACHE BOOL "" FORCE)
+set(SDL_HIDAPI_JOYSTICK OFF CACHE BOOL "" FORCE)
+set(SDL_VIRTUAL_JOYSTICK OFF CACHE BOOL "" FORCE)
 add_subdirectory("${QUEST_SDL_ROOT}" "sdl")
-# SDL Android HID sources include C++; use the C++ driver and explicitly link
-# the NDK's static libc++ runtime into this shared library.
-if(TARGET SDL2)
-    set_property(TARGET SDL2 PROPERTY LINKER_LANGUAGE CXX)
-    target_link_libraries(SDL2 PRIVATE c++_static)
-endif()
 set(BUILD_LOADER ON CACHE BOOL "" FORCE)
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_API_LAYERS OFF CACHE BOOL "" FORCE)
