@@ -52,7 +52,7 @@ public final class SetupActivity extends Activity {
         for (File file : files) {
             String name = file.getName().toLowerCase(Locale.ROOT);
             if (file.isFile() && (name.endsWith(".iso") || name.endsWith(".gcm") ||
-                    name.endsWith(".ciso") || name.endsWith(".rvz"))) return file;
+                    name.endsWith(".ciso"))) return file;
         }
         return null;
     }
@@ -147,7 +147,6 @@ public final class SetupActivity extends Activity {
         if (lower.endsWith(".iso")) extension = ".iso";
         else if (lower.endsWith(".gcm")) extension = ".gcm";
         else if (lower.endsWith(".ciso")) extension = ".ciso";
-        else if (lower.endsWith(".rvz")) throw new IllegalArgumentException("RVZ import is not enabled in this build yet. Choose ISO, GCM, or CISO.");
         else throw new IllegalArgumentException("Choose a .iso, .gcm, or .ciso GameCube image.");
 
         File dir = romDirectory();
@@ -168,7 +167,7 @@ public final class SetupActivity extends Activity {
             throw error;
         }
 
-        if (temporary.length() < 0x440) {
+        if (temporary.length() < (extension.equals(".ciso") ? 0x8000 : 0x440)) {
             temporary.delete();
             throw new IllegalArgumentException("The selected file is too small to be a GameCube disc image.");
         }
@@ -211,7 +210,7 @@ public final class SetupActivity extends Activity {
             for (File file : existing) {
                 if (!file.equals(destination) && !file.equals(temporary) &&
                         (file.getName().endsWith(".iso") || file.getName().endsWith(".gcm") ||
-                         file.getName().endsWith(".ciso") || file.getName().endsWith(".rvz"))) {
+                         file.getName().endsWith(".ciso"))) {
                     // Remove only the previous imported disc after the new one is in place.
                     file.delete();
                 }
