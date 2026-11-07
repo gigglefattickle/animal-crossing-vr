@@ -226,7 +226,7 @@ try {
     $location = (Invoke-App 'pwd').Trim()
     if (!$location.EndsWith('/' + $QuestPackage)) { throw 'Unexpected private app-storage directory; no game data was changed.' }
     $listing = Invoke-App 'if [ -d files/rom ]; then find files/rom -maxdepth 1 -type f -print; fi'
-    $existing = @($listing -split '\r?\n' | Where-Object { $_ -match '\.(iso|gcm|ciso)$' })
+    $existing = @($listing -split '\r?\n' | Where-Object { $_ -match '\.(iso|gcm|ciso|rvz)$' })
     if ($existing.Count -gt 0) {
         Write-Host 'Your existing Quest ROM, saves, and settings have been kept. No game data was imported.'
     } else {
