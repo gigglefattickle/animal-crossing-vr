@@ -459,7 +459,11 @@ endif()
 
 # Link SDL2 without SDL2main (we define SDL_MAIN_HANDLED)
 if(ANDROID)
-    target_link_libraries(ac_pc SDL2::SDL2 openxr_loader GLESv3 EGL android log dl m)
+    # The Android toolchain selects clang.exe as the shared-library link driver
+    # for this mixed C/C++ target. Unlike clang++, it does not add the C++ ABI,
+    # libc++, and unwinder automatically. Link the NDK static runtime explicitly
+    # after the game and OpenXR dependencies so exceptions and RTTI resolve.
+    target_link_libraries(ac_pc SDL2::SDL2 openxr_loader GLESv3 EGL android log dl m c++_static c++abi unwind)
 elseif(TARGET SDL2::SDL2)
     target_link_libraries(ac_pc glad SDL2::SDL2)
 else()
