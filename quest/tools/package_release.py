@@ -68,8 +68,8 @@ def validate_apk(apk, receipt_path, expected_version):
             raise ValueError('APK ZIP integrity check failed')
         for name in LIBRARIES:
             data = archive.read('lib/' + ABI + '/' + name)
-            if (len(data) < 20 or data[:4] != b'\x7fELF' or data[4:6] != b'\x01\x01' or
-                    int.from_bytes(data[18:20], 'little') != 40):
+            if (len(data) < 20 or data[:4] != b'\x7fELF' or data[4:6] != b'\x02\x01' or
+                    int.from_bytes(data[18:20], 'little') != 183):
                 raise ValueError(name + ' is not an ARM64 little-endian library')
             if hashlib.sha256(data).hexdigest() != receipt['libraries'][name]:
                 raise ValueError(name + ' differs from the verified build receipt')
