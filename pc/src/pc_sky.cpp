@@ -36,16 +36,16 @@ float hash(float n) { return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
 float oval(vec2 p, vec2 center, vec2 size) {
     return length((p-center)/size);
 }
-// Smooth-edged clusters, with a broad base and irregular rounded lobes.
+// Wild World-inspired cloud banks: flatter, longer, soft-edged layers.
 float cloud(vec2 p, float seed) {
-    p.x += 0.018*sin(p.y*6.0+seed*9.0);
-    p.y += 0.008*sin(p.x*9.0+seed*15.0);
-    float d = oval(p, vec2(0.0,-0.10), vec2(1.0,0.30));
-    d = min(d, oval(p, vec2(-0.49,0.04), vec2(0.43,0.39)));
-    d = min(d, oval(p, vec2(-0.10,0.23), vec2(0.48,0.57)));
-    d = min(d, oval(p, vec2(0.36,0.13+0.10*seed), vec2(0.46,0.43)));
-    d = min(d, oval(p, vec2(0.73,-0.04), vec2(0.35,0.26)));
-    return 1.0-smoothstep(0.86,1.08,d);
+    p.x += 0.012*sin(p.y*5.0+seed*8.0);
+    p.y += 0.010*sin(p.x*7.0+seed*13.0);
+    float d = oval(p, vec2(0.0,-0.06), vec2(1.18,0.23));
+    d = min(d, oval(p, vec2(-0.56,0.06), vec2(0.52,0.28)));
+    d = min(d, oval(p, vec2(-0.16,0.14+0.04*seed), vec2(0.60,0.34)));
+    d = min(d, oval(p, vec2(0.42,0.08), vec2(0.62,0.27)));
+    d = min(d, oval(p, vec2(0.88,-0.02), vec2(0.36,0.19)));
+    return 1.0-smoothstep(0.91,1.10,d);
 }
 void main() {
     vec3 eye = vec3((screen + projection.zw)/projection.xy, -1.0);
@@ -57,14 +57,37 @@ void main() {
     float day = smoothstep(5.0,7.5,hour)*(1.0-smoothstep(17.0,20.0,hour));
     float dusk = max(1.0-abs(hour-6.0)/1.5,1.0-abs(hour-18.5)/1.5);
     dusk = max(dusk,0.0)*(1.0-wet);
-    vec3 zenith = mix(vec3(0.018,0.032,0.095),vec3(0.065,0.29,0.84),day);
-    vec3 horizon = mix(vec3(0.065,0.10,0.19),vec3(0.65,0.85,0.96),day);
-    horizon = mix(horizon,vec3(0.96,0.56,0.37),dusk*0.72);
-    zenith = mix(zenith,mix(vec3(0.045,0.055,0.075),vec3(0.36,0.43,0.51),day),wet);
-    horizon = mix(horizon,mix(vec3(0.10,0.12,0.15),vec3(0.65,0.70,0.74),day),wet);
+    // Bright daytime blue with a peach-to-lavender twilight transition.
+    vec3 zenith = mix(vec3(0.012,0.020,0.070),vec3(0.055,0.34,0.91),day);
+    vec3 horizon = mix(vec3(0.055,0.075,0.16),vec3(0.72,0.87,0.98),day);
+    vec3 duskZenith = vec3(0.30,0.24,0.43);
+    vec3 duskHorizon = vec3(1.00,0.62,0.48);
+    zenith = mix(zenith,duskZenith,dusk*0.72);
+    horizon = mix(horizon,duskHorizon,dusk*0.86);
+    zenith = mix(zenith,mix(vec3(0.035,0.045,0.075),vec3(0.39,0.47,0.56),day),wet);
+    horizon = mix(horizon,mix(vec3(0.085,0.10,0.15),vec3(0.68,0.73,0.78),day),wet);
     vec3 sky = mix(horizon,zenith,pow(clamp(h,0.0,1.0),0.48));
     // Fade below the horizon to a quiet blue haze behind the actual terrain.
     sky = mix(sky,horizon*mix(0.55,0.77,day),smoothstep(0.0,0.20,-h));
+
+    // Procedural night details; no Wild World textures or ROM assets are used.
+    float night = max(1.0-smoothstep(5.0,7.0,hour),
+                      smoothstep(18.0,20.5,hour));
+    if (h > 0.10 && night > 0.001) {
+        vec2 starCell = vec2(azimuth*420.0,(h+0.15)*190.0);
+        vec2 starId = floor(starCell);
+        vec2 starLocal = fract(starCell)-0.5;
+        float starSeed = hash(starId.x+starId.y*733.0);
+        float starSize = mix(0.010,0.026,hash(starId.x*3.1+starId.y*17.7));
+        float star = (1.0-smoothstep(starSize,starSize+0.012,length(starLocal)))
+                   * step(0.986,starSeed);
+        sky += vec3(0.72,0.82,1.0)*star*night*0.72;
+        vec2 moonPoint = vec2(azimuth-0.72,h-0.43);
+        moonPoint.x = min(moonPoint.x,1.0-moonPoint.x);
+        float moon = 1.0-smoothstep(0.035,0.043,length(moonPoint));
+        sky = mix(sky,vec3(0.96,0.94,0.82),moon*night*0.92);
+        sky += vec3(0.30,0.40,0.72)*exp(-length(moonPoint)*18.0)*0.10*night;
+    }
 
     // Sparse distant island silhouettes, entirely behind the playable world.
     float ridge = 0.006 + 0.015*pow(max(0.0,sin(azimuth*2.0*PI*7.0+1.2)),4.0)
@@ -97,9 +120,10 @@ void main() {
                               (latitude-elevation)/(0.025+r*0.065));
                 if (abs(p.x)<1.4 && abs(p.y)<1.2 && (row==0 || seed>0.15)) {
                     float cover = cloud(p,seed)*mix(0.78,0.96,r/2.0);
-                    vec3 shade = mix(vec3(0.12,0.16,0.25),vec3(0.64,0.76,0.93),day);
-                    vec3 lit = mix(vec3(0.23,0.28,0.38),vec3(0.98,0.98,0.94),day);
-                    lit = mix(lit,vec3(0.98,0.72,0.57),dusk*0.65);
+                    vec3 shade = mix(vec3(0.12,0.14,0.25),vec3(0.63,0.75,0.91),day);
+                    vec3 lit = mix(vec3(0.26,0.27,0.39),vec3(0.99,0.99,0.97),day);
+                    lit = mix(lit,vec3(1.00,0.70,0.59),dusk*0.72);
+                    lit = mix(lit,vec3(0.58,0.56,0.73),(1.0-day)*0.25);
                     vec3 puff = mix(shade,lit,smoothstep(-0.16,0.42,p.y));
                     puff = mix(puff,horizon*0.94,wet*0.85);
                     sky = mix(sky,puff,cover);
