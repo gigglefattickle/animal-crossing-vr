@@ -54,7 +54,7 @@ public final class SetupActivity extends Activity {
         for (File file : files) {
             String name = file.getName().toLowerCase(Locale.ROOT);
             if (file.isFile() && (name.endsWith(".iso") || name.endsWith(".gcm") ||
-                    name.endsWith(".ciso"))) return file;
+                    name.endsWith(".ciso") || name.endsWith(".rvz"))) return file;
         }
         return null;
     }
@@ -149,7 +149,8 @@ public final class SetupActivity extends Activity {
         if (lower.endsWith(".iso")) extension = ".iso";
         else if (lower.endsWith(".gcm")) extension = ".gcm";
         else if (lower.endsWith(".ciso")) extension = ".ciso";
-        else throw new IllegalArgumentException("Choose a .iso, .gcm, or .ciso GameCube image.");
+        else if (lower.endsWith(".rvz")) extension = ".rvz";
+        else throw new IllegalArgumentException("Choose a .rvz, .iso, .gcm, or .ciso GameCube image.");
 
         File dir = romDirectory();
         if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException("Cannot create game storage.");
@@ -169,11 +170,30 @@ public final class SetupActivity extends Activity {
             throw error;
         }
 
-        if (temporary.length() < (extension.equals(".ciso") ? 0x8000 : 0x440)) {
+        if (temporary.length() < (extension.equals(".rvz") ? 0x124 : (extension.equals(".ciso") ? 0x8000 : 0x440))) {
             temporary.delete();
             throw new IllegalArgumentException("The selected file is too small to be a GameCube disc image.");
         }
-        if (extension.equals(".ciso")) {
+        if (extension.equals(".rvz")) {
+            byte[] magic = new byte[4];
+            byte[] id = new byte[6];
+            try (RandomAccessFile file = new RandomAccessFile(temporary, "r")) {
+                file.readFully(magic);
+                file.seek(0x58);
+                file.readFully(id);
+                file.seek(0x74);
+                file.readFully(magic);
+            }
+            if (magic[0] != (byte)0xc2 || magic[1] != 0x33 || magic[2] != (byte)0x9f || magic[3] != 0x3d) {
+                temporary.delete();
+                throw new IllegalArgumentException("The RVZ disc header is invalid.");
+            }
+            String discId = new String(id, "US-ASCII");
+            if (!discId.startsWith("GAFE01")) {
+                temporary.delete();
+                throw new IllegalArgumentException("This build requires the Animal Crossing USA disc (GAFE01). Found " + discId + ".");
+            }
+        } else if (extension.equals(".ciso")) {
             byte[] magic = new byte[4];
             try (RandomAccessFile file = new RandomAccessFile(temporary, "r")) {
                 file.readFully(magic);
@@ -215,7 +235,7 @@ public final class SetupActivity extends Activity {
             for (File file : existing) {
                 if (!file.equals(destination) && !file.equals(temporary) &&
                         (file.getName().endsWith(".iso") || file.getName().endsWith(".gcm") ||
-                         file.getName().endsWith(".ciso"))) {
+                         file.getName().endsWith(".ciso") || file.getName().endsWith(".rvz"))) {
                     // Remove only the previous imported disc after the new one is in place.
                     file.delete();
                 }
