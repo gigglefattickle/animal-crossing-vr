@@ -114,7 +114,29 @@ def main():
          '--manifest', manifest,
          '--rename-manifest-package', package, '--version-code', args.version, '--replace-version',
          '-A', stage/'assets', '--java', stage/'java-gen'])
-    java_sources = sorted((SDL/'android-project/app/src/main/java').rglob('*.java'))
+    # SDL 2.30's Android activity unconditionally constructs HIDDeviceManager,
+    # even when SDL_HIDAPI is disabled in the native build. That Java manager
+    # immediately calls JNI methods that are intentionally absent when HIDAPI
+    # is disabled, causing UnsatisfiedLinkError on Quest before the game starts.
+    # Quest controller input is supplied by OpenXR, so omit only this unused
+    # Android USB-HID manager while preserving SDL's normal Java input handling.
+    sdl_java_source = SDL/'android-project/app/src/main/java'
+    staged_sdl_java = stage/'sdl-java'
+    shutil.copytree(sdl_java_source, staged_sdl_java)
+    sdl_activity = staged_sdl_java/'org/libsdl/app/SDLActivity.java'
+    sdl_activity_text = sdl_activity.read_text(encoding='utf-8')
+    hid_manager_init = '        mHIDDeviceManager = HIDDeviceManager.acquire(this);'
+    if sdl_activity_text.count(hid_manager_init) != 1:
+        raise ValueError('Pinned SDLActivity.java does not contain exactly one HID manager initialization')
+    sdl_activity.write_text(
+        sdl_activity_text.replace(
+            hid_manager_init,
+            '        // Quest uses OpenXR controller input; SDL HIDAPI is disabled.\\n'
+            '        mHIDDeviceManager = null;'
+        ),
+        encoding='utf-8'
+    )
+    java_sources = sorted(staged_sdl_java.rglob('*.java'))
     java_sources += sorted((SOURCE/'quest/android/java').rglob('*.java'))
     java_sources += sorted((stage/'java-gen').rglob('*.java'))
     arguments = stage/'javac.args'
