@@ -19,10 +19,9 @@
         <meta-data android:name="com.oculus.supportedDevices" android:value="quest3" />
         <meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only" />
         <meta-data android:name="com.oculus.intent.category.VR" android:value="vr_only" />
-        <activity android:name="com.liquidazir.animalcrossingquest.QuestActivity"
-            android:exported="true" android:launchMode="singleTask"
-            android:screenOrientation="landscape" android:alwaysRetainTaskState="true"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|locale|layoutDirection">
+        <activity android:name="com.liquidazir.animalcrossingquest.SetupActivity"
+            android:exported="true" android:launchMode="singleTop"
+            android:screenOrientation="landscape" android:configChanges="orientation|screenSize|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -30,5 +29,9 @@
                 <category android:name="org.khronos.openxr.intent.category.IMMERSIVE_HMD" />
             </intent-filter>
         </activity>
+        <activity android:name="com.liquidazir.animalcrossingquest.QuestActivity"
+            android:exported="false" android:launchMode="singleTask"
+            android:screenOrientation="landscape" android:alwaysRetainTaskState="true"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|locale|layoutDirection" />
     </application>
 </manifest>
