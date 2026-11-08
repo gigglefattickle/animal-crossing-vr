@@ -40,12 +40,12 @@ The ROM itself and extracted game assets are not bundled in the public source
 repository or APK.
 
 When the imported set is present, the outdoor renderer uses the original
-tiled sky strip, weather cloud layers, and star map. Cloud palettes follow the
-game clock; clear, cloudy, and heavy-overcast blends select the corresponding
-cloud layouts. The procedural sky remains the fallback when no valid asset
-pack has been imported. The moon remains procedurally rendered in this first
-integration pass; the original object-sprite atlas is retained in the import
-for a later sprite-layout pass.
+tiled sky strip, weather cloud layers, star map, and full-moon sprite. Cloud
+palettes follow the game clock; clear, cloudy, and heavy-overcast blends select
+the corresponding cloud layouts. The procedural sky remains the fallback when
+no valid asset pack has been imported. The imported object atlases also retain
+the original moon phases, rainbow, and flying-object artwork; animated bird
+flocks and the other sky-object sequences remain a follow-up integration task.
 
 Restart the game after importing. A successful APK build confirms the decoder
 and shader compile; the final appearance, cloud alignment, palette timing, and
