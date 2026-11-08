@@ -524,6 +524,9 @@ int PC_HOST_ENTRY(int argc, char* argv[]) {
     }
 #endif
 
+    #ifdef __ANDROID__
+    quest_vr_diag("pc_main.entered");
+    #endif
     SDL_SetMainReady();
     pc_settings_load();
     if (g_pc_model_viewer_shot_path) g_pc_vr_override = 0;
@@ -532,8 +535,20 @@ int PC_HOST_ENTRY(int argc, char* argv[]) {
     }
     pc_keybindings_load();
     pc_fp_init();
+    #ifdef __ANDROID__
+    quest_vr_diag("pc_main.before_platform_init");
+    #endif
     pc_platform_init();
+    #ifdef __ANDROID__
+    quest_vr_diag("pc_main.after_platform_init");
+    #endif
+    #ifdef __ANDROID__
+    quest_vr_diag("pc_main.before_vr_init");
+    #endif
     pc_vr_init();   /* needs the GL context; no-op when vr_mode=0 or no HMD */
+    #ifdef __ANDROID__
+    quest_vr_diag(pc_vr_active() ? "pc_main.vr_init_active" : "pc_main.vr_init_inactive");
+    #endif
 #ifdef __ANDROID__
     if (!g_pc_running || !pc_vr_active()) {
         pc_vr_shutdown();
@@ -541,7 +556,10 @@ int PC_HOST_ENTRY(int argc, char* argv[]) {
         return 1;
     }
 #endif
+    quest_vr_diag("pc_main.before_disc_init");
     pc_disc_init();
+    quest_vr_diag("pc_main.after_disc_init");
+    quest_vr_diag("pc_main.before_assets_init");
     if (!pc_assets_init()) {
         const char* msg =
             "No game data found.\n\n"
@@ -558,7 +576,9 @@ int PC_HOST_ENTRY(int argc, char* argv[]) {
         return 1;
     }
 
+    quest_vr_diag("pc_main.assets_ready");
     ac_entry();                         /* sets HotStartEntry = &entry */
+    quest_vr_diag("pc_main.before_boot_main");
     boot_main(argc, (const char**)argv); /* full init → HotStartEntry → game loop */
 
     pc_vr_shutdown();
