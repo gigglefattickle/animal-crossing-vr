@@ -1,117 +1,93 @@
-# Animal Crossing VR
+# Animal Crossing VR — Quest 3
 
-Play Animal Crossing in first-person VR on **Windows with SteamVR** or **standalone on Quest 3**.
-Includes tracked tools, weather-aware skies, repaired scenery, and an in-headset settings menu.
-Based on [ACGC-PC-Port](https://github.com/flyngmt/ACGC-PC-Port) and [ac-decomp](https://github.com/ACreTeam/ac-decomp).
+A standalone VR port of **Animal Crossing (GameCube)** for Meta Quest. The goal is to bring the original game into a comfortable first-person VR experience while keeping its original gameplay, town, characters, items, and save data.
 
-**[Download the latest release](https://github.com/LiquidAzir/animal-crossing-vr/releases/latest)** — choose the package for your headset below, not GitHub's Source code archives.
+> **Project status:** Work in progress. Quest APKs are built by GitHub Actions, but a successful build does not mean every feature has been verified on a headset. Some gameplay and VR systems are still being developed and tested.
 
-| Version | Download | Requirements |
-|---|---|---|
-| Windows PC VR | `AnimalCrossing-VR-v0.9.3-vr20-win32.zip` | Working recompiled PC version + SteamVR |
-| Standalone Quest 3 | `AnimalCrossing-Quest-v0.9.3-vr20.zip` | Quest 3 + USB connection to a computer for setup |
+## Highlights
 
-Both require your own **Animal Crossing USA Rev 0 (GAFE01_00)** disc image: `.iso`, `.gcm`, or `.ciso`. No ROMs or saves are included. Quest runs on the headset after setup; it does not need the PC game or streaming.
+- Native Android APK for Meta Quest — the game runs on the headset and does not require PC VR streaming.
+- OpenXR-based VR rendering and tracked Quest controllers.
+- First-person gameplay with player-body/arm presentation work in progress.
+- VR inventory interaction, including controller-pointer selection for the Fish and Bug collection pages.
+- VR-themed launcher with game launch, Save Manager, and diagnostics export.
+- Save-management and recovery helpers intended to help protect memory-card data.
+- Wild World-inspired flat cloud and sky rendering work.
+- RVZ disc-image reading, alongside ISO, GCM, and CISO support.
 
-**Quick links:** [VR controls](#vr-controls) · [PC installation](#windows-pc-vr) · [Quest installation](#standalone-quest-3)
+Features may vary between builds. Check the current source and release notes before assuming a feature is complete.
 
-## Installation
+## Requirements
 
-### Windows PC VR
+- A Meta Quest headset. Quest 3 is the primary target and test device.
+- Your own legally obtained **Animal Crossing USA Rev 0 (GAFE01)** GameCube disc image.
+- A supported image file: `.rvz`, `.iso`, `.gcm`, or `.ciso`.
+- For installing a sideloaded APK, a USB-connected computer with Android platform tools/ADB or a compatible sideloading app.
 
-1. **Install the recompiled PC version first.** Download `ACGC-PC-Port0.9.3.zip` from [ACGC-PC-Port v0.9.3](https://github.com/flyngmt/ACGC-PC-Port/releases/tag/v0.9.3-playtest) and extract it to a writable folder.
-2. Put your own disc image in `rom` beside `AnimalCrossing.exe`. Run the PC version once to confirm it works, then close it and **back up the game folder**.
-3. Download and extract **`AnimalCrossing-VR-v0.9.3-vr20-win32.zip`** from the release above. Copy everything **inside** its `AnimalCrossing-VR` folder into your working PC game folder and replace the supplied files.
-4. Keep the executable, both DLLs, `shaders`, and `vr_actions` together. Your existing `rom`, `save`, `settings.ini`, and keybindings stay in place.
-5. Start SteamVR with the headset and controllers connected, then run `AnimalCrossing.exe`. For Quest PC VR, connect through Steam Link, Virtual Desktop, or Quest Link/Air Link first.
-6. Press **F5** or **left grip + Y** to enter first person. **X + Y** recenters. Without a connected headset, the Windows build also runs flat.
+**No game ROM, Nintendo game assets, or personal save files are included.** The user must provide their own game image.
 
-**Updating:** close the game, back up `save`, then repeat steps 3–4 with the complete new package. [VR controls](#vr-controls).
+## Install on Quest
 
-### Standalone Quest 3
+1. Download the latest successful **Animal Crossing Quest APK** from the repository's [Actions artifacts](https://github.com/gigglefattickle/animal-crossing-vr/actions) or a published [GitHub Release](https://github.com/gigglefattickle/animal-crossing-vr/releases), if one is available.
+2. Enable Developer Mode on your Quest and authorize USB debugging.
+3. Install the APK using SideQuest, Meta Quest Developer Hub, or ADB.
+4. Put your own supported disc image somewhere accessible to the headset's file picker.
+5. Launch **Animal Crossing**, choose the game-file import option, and select your disc image.
+6. Wait for import and validation to finish, then start the game.
 
-1. On a Windows computer, install [SideQuest's Advanced Installer](https://sidequestvr.com/setup-howto). Follow its setup to enable Developer Mode, connect Quest 3 by USB, and accept **Allow USB debugging** inside the headset.
-2. Download **`AnimalCrossing-Quest-v0.9.3-vr20.zip`** from the release above and extract it completely.
-3. Close Animal Crossing on the headset if it is running. Open **`Install-Quest.cmd`** in the extracted folder and select your own supported disc image when asked. It installs the APK and copies the ROM for you.
-4. Unplug the USB cable and open **Animal Crossing** from the headset's **Unknown Sources** apps.
+The APK is standalone after installation; the computer is only needed for sideloading if you are not using another supported installation method.
 
-**Updating:** run the installer from the new package again. Existing ROMs, saves, and settings are kept; do not uninstall or clear app data. [Quest setup help and manual installation](quest/INSTALL.md).
+### Updating
 
-## VR controls
+Install a newer APK over the existing app using the same signing key. Do not uninstall the app or clear its storage if you want to preserve the imported game and saves. Export a backup before major updates whenever possible.
 
-These are the default bindings. **Touch controls are the same in PC VR and standalone Quest 3.** Grip means the side squeeze button; a stick click means pressing the stick down.
+## Build from source
 
-![Quest 3 controllers with labeled buttons, sticks, triggers, grips, and VR shortcuts. Full controls follow in the table.](docs/images/quest-controls.svg)
+The Quest APK is built by the workflow:
 
-[Open the controller diagram at full size](docs/images/quest-controls.svg).
+- [Quest standalone APK workflow](.github/workflows/quest-standalone-apk.yml)
+- [Build history and downloadable artifacts](https://github.com/gigglefattickle/animal-crossing-vr/actions)
 
-| Action | Quest / Touch (PC or standalone) | Valve Index (PC) |
-|---|---|---|
-| Move | Left stick | Left stick |
-| Turn / camera | Right stick | Right stick |
-| Talk, confirm, use equipped tool | Right **A** or right trigger | Right **A** or right trigger |
-| Pick up, cancel / back | Right **B** or left trigger | Right **B** or left trigger |
-| Run | Hold right **B**, left trigger, or right grip while moving | Hold right **B**, left trigger, or right grip while moving |
-| Open inventory | Left **Y** or left stick click | Left **B** or left stick click |
-| Rearrange items in inventory | Left grip to pick up / drop the selected item | Left grip to pick up / drop the selected item |
-| Next inventory / collection page | Right grip | Right grip |
-| Open town map (once obtained) | Left **X** | Left **A** |
-| Previous / next pocket tool | Hold left grip + left stick **left / right** | Hold left grip + left stick **left / right** |
-| Put tool away | Hold left grip + left stick **down** | Hold left grip + left stick **down** |
-| Toggle lights in your house / island cottage | Right stick click | Right stick click |
-| Toggle first person / third person | Hold left grip, then press **Y** | Hold left grip, then press left **B** |
-| Recenter view | Press **X + Y** together | Press left **A + B** together |
-| Open VR Settings / pause | Click **both sticks together** | Click **both sticks together** |
+The workflow checks out the source, prepares the Android toolchain, fetches pinned SDL and OpenXR dependencies, runs package/data/RVZ tests, builds the APK, and uploads the APK with a build receipt and SHA-256 checksum.
 
-Tool shortcuts work during normal outdoor movement and use tools in your pockets. Putting a tool away needs an empty pocket slot. Holding left grip changes the left stick to D-pad input, so release it to walk again.
+To build locally, use the instructions in **[quest/BUILDING.md](quest/BUILDING.md)**. The project currently packages the game for **ARM32 / armeabi-v7a**; do not assume ARM64 game support.
 
-**Motion tools:** in first person, equip a net, axe, shovel, or fishing rod and swing your **right controller** to use it. **A/right trigger** also works. Look toward your target with the axe, shovel, or rod; the net follows your hand. Let your hand slow between swings. Gestures are disabled in menus and dialogue, and can be turned off in VR Settings.
+## Documentation
 
-**VR Settings:** left stick **up/down** selects a row, **left/right** changes its value, **A/right trigger** confirms, and **B/left trigger** goes back or resumes. Choose **Apply** to save changes, then resume; unapplied edits prompt before being discarded. Settings include hand visuals (**off by default**), smooth/snap turning, motion swings, and volume. Open this menu during gameplay; it is unavailable on the title screen or inside NES games.
+- [Quest installation guide](quest/INSTALL.md)
+- [Manual install, ROM transfer, and save backups](quest/MANUAL.md)
+- [Quest build instructions](quest/BUILDING.md)
+- [Quest architecture](quest/ARCHITECTURE.md)
+- [Quest rewrite plan and milestones](docs/QUEST3_REWRITE.md)
+- [Frequently asked questions](FAQ.md)
 
-On PC, **F5** also toggles first person. Custom SteamVR bindings can differ; change them in **SteamVR → Settings → Controllers → Manage Controller Bindings**. [PC installation](#windows-pc-vr).
+## Current development areas
 
-## This release
+Development is ongoing across:
 
-VR20 includes the standalone Quest build (APK build 14), first-person fishing and catches, fishing-rod alignment, optional hand markers, the VR settings menu, aquarium visibility fixes, and island-travel, house, dock, and bridge repairs.
+- Player body, arms, and controller-driven movement.
+- VR inventory and collection-page interaction.
+- Sky and cloud rendering.
+- Environment and scenery fixes.
+- Launcher usability, save management, and diagnostics.
+- Stability, crash reporting, and Quest lifecycle handling.
 
-Scenery fixes follow models, so they carry over to new towns and different residents. Some structures and later Nook shop upgrades still use approximate rear fills. Quest 3 has been playtested; other standalone headsets are unverified. Complete island return/save-reload and sleep/resume testing remain outstanding. [Release notes](docs/release-v0.9.3-vr20.md).
+The Fish and Bug collection pointer work is intended to use the collection's own 8×5 slot layout while leaving normal pocket-grid dragging unchanged. Treat this as newly implemented until the corresponding APK has built and the behavior has been tested on-device.
 
-## Source code
+## Reporting a problem
 
-Both versions live in this repository, with separate branches/builds to keep platform changes isolated:
+When reporting a crash or other issue, include:
 
-- **PC:** [`master`](https://github.com/LiquidAzir/animal-crossing-vr/tree/master). Build with MSYS2 MINGW32 using `./build_pc.sh`; see [PC documentation](pc/DOCUMENTATION.md).
-- **Quest:** [`quest/standalone`](https://github.com/LiquidAzir/animal-crossing-vr/tree/quest/standalone). See [Quest build instructions](https://github.com/LiquidAzir/animal-crossing-vr/blob/quest/standalone/quest/BUILDING.md).
+1. Quest model and OS version, if known.
+2. The APK build or GitHub Actions run you installed.
+3. What you were doing immediately before the issue.
+4. Whether it happens every time or only sometimes.
+5. The diagnostics export from the launcher, if the app can still be opened.
 
-## Credits & lineage
+Please do not upload or share your game image or personal save files in an issue. Diagnostics may contain device/app information and runtime logs; review them before sharing publicly.
 
-- **[ACreTeam](https://github.com/ACreTeam)** — the complete Animal
-  Crossing decompilation ([ac-decomp](https://github.com/ACreTeam/ac-decomp))
-  that makes all of this possible.
-- **[flyngmt](https://github.com/flyngmt)** — the
-  [PC port](https://github.com/flyngmt/ACGC-PC-Port): the GX→OpenGL
-  translation layer, asset pipeline, audio, save system, and everything
-  else that turned the decompilation into a runnable native game. This
-  fork's VR layer stands entirely on that work.
-- **[FIX94](https://github.com/FIX94)** — fixNES, powering the in-game NES
-  titles.
-- **Valve** — the [OpenVR SDK](https://github.com/ValveSoftware/openvr)
-  (BSD-3-Clause, vendored in `pc/lib/openvr/`).
-- **Khronos Group** — [OpenXR SDK](https://github.com/KhronosGroup/OpenXR-SDK) for standalone Quest VR.
-- **SDL contributors** — [SDL2](https://www.libsdl.org/) for platform support.
-- VR fork (stereo renderer, first person, motion tools) by
-  [LiquidAzir](https://github.com/LiquidAzir).
+## Credits and legal
 
-This VR fork was developed with AI assistance, with human direction and hands-on playtesting by LiquidAzir.
+This project builds on the Animal Crossing decompilation and the existing PC port work. See the repository history, source headers, and [LICENSE](LICENSE) for attribution and licensing details.
 
-## License
-
-Dual/multi-licensed — see [LICENSE](LICENSE):
-- Decompiled game code: **CC0 1.0** (ACreTeam/ac-decomp)
-- PC port layer: **MIT** © FlyingMeta
-- VR fork additions: **MIT** © LiquidAzir
-- fixNES: **MIT** © FIX94 · OpenVR: **BSD-3-Clause** © Valve
-
-This project distributes no Nintendo game assets or disc images. A legally obtained
-disc image is required to play.
+Animal Crossing and related trademarks and game content are owned by Nintendo. This is an unofficial fan project and is not affiliated with, endorsed by, or sponsored by Nintendo. The project does not distribute Nintendo game files; users must supply their own legally obtained game image.
