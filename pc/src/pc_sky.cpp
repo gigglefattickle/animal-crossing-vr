@@ -449,7 +449,11 @@ static void update_environment_active(void) {
 }
 
 extern "C" void pc_sky_begin_pass(void) {
-    drawn = have_view = 0;
+    /* The game camera is sampled once before the stereo eyes are rendered.
+     * Keep that view across both eye passes; clearing it here made every VR
+     * sky draw fail its have_view guard. A new camera notification replaces
+     * it on the next game frame. */
+    drawn = 0;
     update_environment_active(); // expire even when a scene has no perspective draws
 }
 extern "C" void pc_sky_set_view(const float* matrix) {
