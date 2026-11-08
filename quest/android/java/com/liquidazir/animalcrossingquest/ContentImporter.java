@@ -53,13 +53,14 @@ final class ContentImporter {
         if (!lower.endsWith(".zip"))
             throw new IllegalArgumentException(modPackage ? "Choose a .zip mod package." : "Choose a .dds texture or .zip texture pack.");
 
+        InputStream source = context.getContentResolver().openInputStream(uri);
+        if (source == null) throw new java.io.IOException("Could not open selected ZIP.");
         File folder = createPackFolder(context, modPackage, name);
         int imported = 0;
         long total = 0;
         Set<String> seen = new HashSet<>();
-        try (InputStream raw = context.getContentResolver().openInputStream(uri);
+        try (InputStream raw = source;
              ZipInputStream zip = new ZipInputStream(new BufferedInputStream(raw))) {
-            if (raw == null) throw new java.io.IOException("Could not open selected ZIP.");
             ZipEntry entry;
             int count = 0;
             byte[] buffer = new byte[32768];
