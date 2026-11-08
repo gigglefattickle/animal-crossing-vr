@@ -86,7 +86,7 @@ void main() {
     if (h > 0.10 && night > 0.001) {
         if (acww_assets != 0) {
             vec4 stars = texture(acww_star_layer,
-                vec2(fract(azimuth), clamp((h-0.08)/0.88,0.0,1.0)));
+                vec2(fract(azimuth), 1.0-clamp((h-0.08)/0.88,0.0,1.0)));
             sky = mix(sky,stars.rgb,stars.a*night);
         } else {
             vec2 starCell = vec2(azimuth*420.0,(h+0.15)*190.0);
@@ -149,10 +149,10 @@ void main() {
     }
     if (acww_assets != 0) {
         float drift = environment.x/86400.0;
-        vec2 sky_uv = vec2(fract(azimuth+drift*0.035), clamp((h+0.015)/0.34,0.0,1.0));
+        vec2 sky_uv = vec2(fract(azimuth+drift*0.035), 1.0-clamp((h+0.015)/0.34,0.0,1.0));
         vec4 ww_sky = texture(acww_sky_layer,sky_uv);
         sky = mix(sky,ww_sky.rgb,ww_sky.a);
-        vec2 cloud_uv = vec2(fract(azimuth+drift*0.11), clamp((h-0.015)/0.72,0.0,1.0));
+        vec2 cloud_uv = vec2(fract(azimuth+drift*0.11), 1.0-clamp((h-0.015)/0.72,0.0,1.0));
         vec4 ww_cloud = texture(acww_cloud_layer,cloud_uv);
         sky = mix(sky,ww_cloud.rgb,ww_cloud.a);
     }
