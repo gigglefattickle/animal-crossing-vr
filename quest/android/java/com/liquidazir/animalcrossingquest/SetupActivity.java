@@ -41,6 +41,7 @@ public final class SetupActivity extends Activity {
     private static final int EXPORT_DIAGNOSTICS = 4108;
     private static final int IMPORT_TEXTURES = 4109;
     private static final int IMPORT_MOD = 4110;
+    private static final int IMPORT_SKYBOX = 4111;
     private static final String TAG = "ACQuestSetup";
     private TextView status;
     private Button playButton;
@@ -113,6 +114,11 @@ public final class SetupActivity extends Activity {
         modButton.setText("Import Mod ZIP");
         modButton.setOnClickListener(v -> chooseContent(IMPORT_MOD, "Import a ZIP mod package"));
         root.addView(modButton, buttonParams);
+
+        Button skyButton = new Button(this);
+        skyButton.setText("Import Wild World Sky ZIP");
+        skyButton.setOnClickListener(v -> chooseSkybox());
+        root.addView(skyButton, buttonParams);
 
         Button graphicsButton = new Button(this);
         graphicsButton.setText("Graphics Settings");
@@ -190,6 +196,14 @@ public final class SetupActivity extends Activity {
             Diagnostics.record(this, "launcher.diagnostics_export_failed " + Log.getStackTraceString(error));
             if (status != null) status.setText("Diagnostics export failed: " + error.getMessage());
         }
+    }
+
+    private void chooseSkybox() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/zip");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] { "application/zip", "application/x-zip-compressed", "application/octet-stream" });
+        startActivityForResult(intent, IMPORT_SKYBOX);
     }
 
     private void chooseContent(int requestCode, String title) {
@@ -306,6 +320,19 @@ public final class SetupActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == IMPORT_SKYBOX) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                try {
+                    String imported = SkyboxImporter.importZip(this, data.getData());
+                    status.setText("Imported " + imported + ".\\nRestart the game to activate the Wild World sky.");
+                    Diagnostics.record(this, "launcher.wild_world_sky_imported");
+                } catch (Exception error) {
+                    Log.e(TAG, "Wild World sky import failed", error);
+                    status.setText("Sky import failed: " + error.getMessage());
+                }
+            }
+            return;
+        }
         if (requestCode == IMPORT_TEXTURES || requestCode == IMPORT_MOD) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
