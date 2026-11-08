@@ -147,6 +147,13 @@ public final class SetupActivity extends Activity {
         options.setOnClickListener(v -> showOptions());
         root.addView(options, actionParams);
 
+        Button crashReport = new Button(this);
+        crashReport.setText("CRASH REPORT / EXPORT");
+        crashReport.setOnClickListener(v -> exportDiagnostics());
+        LinearLayout.LayoutParams crashParams = new LinearLayout.LayoutParams(-1, -2);
+        crashParams.topMargin = 10;
+        root.addView(crashReport, crashParams);
+
         setContentView(root);
         refreshState();
     }
@@ -241,13 +248,17 @@ public final class SetupActivity extends Activity {
                     game.getName() + ", " + game.length() + " bytes"));
             writer.newLine();
             writer.newLine();
+            writer.write("Previous Android process exits and crash traces (newest first):");
+            writer.newLine();
+            writer.write(Diagnostics.readPreviousCrash(this));
+            writer.newLine();
             writer.write("App event log (most recent activity first in chronological order):");
             writer.newLine();
             writer.write(Diagnostics.readEvents(this));
             writer.newLine();
             writer.write("Note: This export contains app/device metadata and app-generated breadcrumbs only. " +
-                    "It does not include the disc image, save files, headset account details, or full Android logcat. " +
-                    "A native process crash may require an additional Quest/ADB logcat capture.");
+                    "It does not include the disc image, save files, headset account details, or other apps' logs. " +
+                    "Android may provide a previous-process native crash trace; availability depends on OS retention and permissions.");
             writer.newLine();
             writer.flush();
             Diagnostics.record(this, "launcher.diagnostics_exported");
