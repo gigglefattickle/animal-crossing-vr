@@ -8078,6 +8078,8 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
         static int quest_drop_pending = 0;
         static int quest_drop_valid = 0;
         static int quest_trigger_was_down = 0;
+        static int quest_drag_candidate = 0;
+        static f32 quest_trigger_hold_frames = 0.0f;
         float u = 0.0f, v = 0.0f;
         int trigger_down = 0, trigger_pressed = 0;
         int pointer_valid = pc_vr_inventory_pointer(&u, &v, &trigger_down, &trigger_pressed);
@@ -8089,7 +8091,9 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
 
         if (menu_info->menu_type != mSM_OVL_INVENTORY ||
             menu_info->data0 != mSM_IV_OPEN_NORMAL) {
-            quest_dragging = quest_drop_pending = 0;
+            quest_dragging = quest_drop_pending = quest_drag_candidate = 0;
+            quest_drop_valid = 0;
+            quest_trigger_hold_frames = 0.0f;
         } else if (pointer_valid &&
                    ((quest_dragging && tag_ovl->tags[0].type == mTG_TYPE_NONE) ||
                     (tag_ovl->sel_tag_idx == 0 && tag->type == mTG_TYPE_NONE &&
@@ -8121,23 +8125,49 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
                     pointer_tag = &tag_ovl->tags[0];
                 }
 
-                /* Start a drag only from a real, selectable pocket. */
+                /* A short trigger tap selects/interacts. A hold becomes a drag
+                 * only after the pocket is hovered long enough to distinguish
+                 * it from an ordinary click. */
                 if (trigger_pressed && !quest_dragging && !quest_drop_pending &&
-                    tag_ovl->sel_tag_idx == 0 && mTG_check_hand_condition(submenu) &&
+                    !quest_drag_candidate && tag_ovl->sel_tag_idx == 0 &&
+                    mTG_check_hand_condition(submenu) &&
                     mTG_check_move_proc(submenu, pointer_tag) &&
                     Now_Private->inventory.pockets[mTG_get_table_idx(pointer_tag)] != EMPTY_NO) {
-                    submenu->overlay->menu_control.trigger &= ~BUTTON_A;
+                    quest_drag_candidate = 1;
+                    quest_trigger_hold_frames = 0.0f;
+                }
+            }
+        }
+
+        if (quest_drag_candidate && trigger_down) {
+            f32 dt = gamePT->graph->dt_num_60fps_frames;
+            if (dt > 0.0f) quest_trigger_hold_frames += dt;
+            /* Suppress the trigger's normal A mapping until tap/hold is known. */
+            submenu->overlay->menu_control.trigger &= ~BUTTON_A;
+            if (!quest_dragging && !quest_drop_pending &&
+                quest_trigger_hold_frames >= 9.0f && grid_hit &&
+                tag_ovl->sel_tag_idx == 0 && mTG_check_hand_condition(submenu)) {
+                mTG_tag_c* pointer_tag = &tag_ovl->tags[0];
+                if (mTG_check_move_proc(submenu, pointer_tag) &&
+                    Now_Private->inventory.pockets[mTG_get_table_idx(pointer_tag)] != EMPTY_NO) {
                     mTG_catch_proc(submenu, menu_info);
                     quest_dragging = hand_ovl->info.item != EMPTY_NO;
                 }
             }
         }
 
-        /* Keep the latest valid destination while the trigger is held. */
-        if (quest_dragging && trigger_released) {
-            quest_dragging = 0;
-            quest_drop_pending = 1;
-            quest_drop_valid = grid_hit;
+        /* A quick tap is the normal A-button interaction; a held trigger
+         * releases the grabbed item through the game's native drop routine. */
+        if (trigger_released && quest_drag_candidate) {
+            if (quest_dragging) {
+                quest_dragging = 0;
+                quest_drop_pending = 1;
+                quest_drop_valid = grid_hit;
+            } else if (quest_trigger_hold_frames < 9.0f) {
+                submenu->overlay->menu_control.trigger |= BUTTON_A;
+            }
+            quest_drag_candidate = 0;
+            quest_trigger_hold_frames = 0.0f;
         }
 
         /* Catch/drop animations are owned by the original hand overlay.
