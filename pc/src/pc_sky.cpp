@@ -51,12 +51,12 @@ float oval(vec2 p, vec2 center, vec2 size) {
 float cloud(vec2 p, float seed) {
     p.x += 0.012*sin(p.y*5.0+seed*8.0);
     p.y += 0.010*sin(p.x*7.0+seed*13.0);
-    float d = oval(p, vec2(0.0,-0.06), vec2(1.18,0.23));
-    d = min(d, oval(p, vec2(-0.56,0.06), vec2(0.52,0.28)));
-    d = min(d, oval(p, vec2(-0.16,0.14+0.04*seed), vec2(0.60,0.34)));
-    d = min(d, oval(p, vec2(0.42,0.08), vec2(0.62,0.27)));
-    d = min(d, oval(p, vec2(0.88,-0.02), vec2(0.36,0.19)));
-    return 1.0-smoothstep(0.91,1.10,d);
+    float d = oval(p, vec2(0.0,-0.06), vec2(0.82,0.20));
+    d = min(d, oval(p, vec2(-0.48,0.04), vec2(0.40,0.24)));
+    d = min(d, oval(p, vec2(-0.12,0.13+0.035*seed), vec2(0.46,0.29)));
+    d = min(d, oval(p, vec2(0.34,0.07), vec2(0.48,0.23)));
+    d = min(d, oval(p, vec2(0.72,-0.02), vec2(0.30,0.17)));
+    return 1.0-smoothstep(0.94,1.08,d);
 }
 void main() {
     vec3 eye = vec3((screen + projection.zw)/projection.xy, -1.0);
