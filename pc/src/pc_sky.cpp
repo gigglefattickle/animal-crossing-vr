@@ -477,7 +477,7 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
     }
     if (acww_assets_ready) update_wild_world_clouds(seconds,overcast);
     GLint previous_program, previous_vao, depth_func;
-    GLint previous_active_texture, previous_texture0, previous_texture1, previous_texture2;
+    GLint previous_active_texture, previous_texture0, previous_texture1, previous_texture2, previous_texture3;
     pc_gl_depth_value depth_range[2];
     GLboolean depth_mask, color_mask[4];
     GLboolean depth = glIsEnabled(GL_DEPTH_TEST), blend = glIsEnabled(GL_BLEND);
@@ -490,6 +490,7 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
     glActiveTexture(GL_TEXTURE0); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture0);
     glActiveTexture(GL_TEXTURE1); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture1);
     glActiveTexture(GL_TEXTURE2); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture2);
+    glActiveTexture(GL_TEXTURE3); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture3);
     glActiveTexture(GL_TEXTURE0);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&previous_vao);
     glGetIntegerv(GL_DEPTH_FUNC,&depth_func);
@@ -508,15 +509,17 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
     glUniformMatrix3fv(u_rotation,1,GL_TRUE,rotation);
     glUniform2f(u_environment,seconds,overcast);
     glUniform1i(u_acww_assets,acww_assets_ready ? 1 : 0);
-    glUniform1i(u_acww_sky,0); glUniform1i(u_acww_clouds,1); glUniform1i(u_acww_stars,2);
+    glUniform1i(u_acww_sky,0); glUniform1i(u_acww_clouds,1); glUniform1i(u_acww_stars,2); glUniform1i(u_acww_moon,3);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,acww_sky_texture);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,acww_cloud_texture);
     glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,acww_star_texture);
+    glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D,acww_moon_texture);
     glDrawArrays(GL_TRIANGLES,0,3);
     // Exact restoration also preserves the GX renderer's cached state.
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture0);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture1);
     glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture2);
+    glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture3);
     glActiveTexture((GLenum)previous_active_texture);
     glUseProgram(previous_program); glBindVertexArray(previous_vao);
     glDepthFunc(depth_func); glDepthMask(depth_mask);
