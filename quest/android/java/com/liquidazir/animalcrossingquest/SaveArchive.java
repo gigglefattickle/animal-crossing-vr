@@ -56,7 +56,7 @@ final class SaveArchive {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 if (entry.isDirectory()) { zip.closeEntry(); continue; }
-                String name = entry.getName().replace('\\\\','/');
+                String name = entry.getName().replace('\\','/');
                 if (name.startsWith("/") || name.contains("..") || name.indexOf(':') >= 0)
                     throw new IOException("Unsafe path in save archive.");
                 String[] parts = name.split("/");
