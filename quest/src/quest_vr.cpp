@@ -237,14 +237,14 @@ static GLuint pcvr_compile(GLenum type, const char* src) {
 
 static int pcvr_create_ray_gl(void) {
     static const char* vs_src =
-        "#version 300 es\\nprecision highp float;\\n"
-        "layout(location=0) in vec3 a_pos;\\n"
-        "uniform mat4 u_mvp;\\n"
-        "void main(){ gl_Position = u_mvp * vec4(a_pos, 1.0); }\\n";
+        "#version 300 es\nprecision highp float;\n"
+        "layout(location=0) in vec3 a_pos;\n"
+        "uniform mat4 u_mvp;\n"
+        "void main(){ gl_Position = u_mvp * vec4(a_pos, 1.0); }\n";
     static const char* fs_src =
-        "#version 300 es\\nprecision highp float;\\n"
-        "uniform vec4 u_color;\\n out vec4 frag;\\n"
-        "void main(){ frag = u_color; }\\n";
+        "#version 300 es\nprecision highp float;\n"
+        "uniform vec4 u_color;\n out vec4 frag;\n"
+        "void main(){ frag = u_color; }\n";
     GLuint vs = pcvr_compile(GL_VERTEX_SHADER, vs_src), fs = pcvr_compile(GL_FRAGMENT_SHADER, fs_src);
     if (!vs || !fs) return 0;
     s_vr.ray_prog = glCreateProgram(); glAttachShader(s_vr.ray_prog, vs); glAttachShader(s_vr.ray_prog, fs);
