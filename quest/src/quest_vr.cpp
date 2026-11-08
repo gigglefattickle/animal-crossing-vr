@@ -104,6 +104,17 @@ static struct {
     u32 empty_hands_stamp;
     int submitted_this_frame;
 } s_vr;
+
+/* C-facing inventory pointer query used by the game overlay. Keep this
+ * implementation in the Quest backend (not the desktop OpenVR backend). */
+extern "C" int pc_vr_inventory_pointer(float* u, float* v,
+                                        int* trigger_down, int* trigger_pressed) {
+    if (u) *u = s_vr.inventory_pointer_u;
+    if (v) *v = s_vr.inventory_pointer_v;
+    if (trigger_down) *trigger_down = s_vr.inventory_trigger_down;
+    if (trigger_pressed) *trigger_pressed = s_vr.inventory_trigger_pressed;
+    return s_vr.active && s_vr.inventory_pointer_valid;
+}
 float g_pc_vr_cull_expand = 0.0f;
 float g_pc_vr_cull_znear_slack = 0.0f;
 int g_pc_town_residency = 0;
