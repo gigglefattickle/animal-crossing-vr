@@ -1170,7 +1170,10 @@ static void pcvr_draw_empty_hands(void) {
 extern "C" void pc_vr_end_scene_passes(void) {
     if (!s_vr.active) return;
     pc_gx_draw_pending();
-    pcvr_draw_empty_hands();
+    /* In first-person gameplay the original villager skeleton now owns the
+     * tracked egg-shaped hands. Do not overlay the old detached white grip
+     * markers on top of those hands. Keep markers for the normal VR camera. */
+    if (!pc_fp_view_is_active()) pcvr_draw_empty_hands();
     s_vr.in_scene_pass = 0;
     s_vr.current_eye = -1;
     s_vr.ui_bound = 0;
