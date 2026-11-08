@@ -947,9 +947,15 @@ public final class SetupActivity extends Activity {
         }
         Diagnostics.record(this, "launcher.play_pressed game=" + importedGame().getName());
         try {
-            File recovery = SaveRecovery.createSnapshot(this, "Before game launch");
-            Diagnostics.record(this, recovery == null ? "save.recovery_snapshot_skipped no_card_saves" :
-                    "save.recovery_snapshot_created source=auto name=" + recovery.getName());
+            try {
+                File recovery = SaveRecovery.createSnapshot(this, "Before game launch");
+                Diagnostics.record(this, recovery == null ? "save.recovery_snapshot_skipped no_card_saves" :
+                        "save.recovery_snapshot_created source=auto name=" + recovery.getName());
+            } catch (java.io.IOException recoveryError) {
+                // A backup failure must never prevent the user from starting the game.
+                Diagnostics.record(this, "save.recovery_snapshot_failed_before_launch " +
+                        Log.getStackTraceString(recoveryError));
+            }
             startActivity(new Intent(this, QuestActivity.class));
         } catch (RuntimeException error) {
             Diagnostics.record(this, "launcher.start_activity_failed " + Log.getStackTraceString(error));
