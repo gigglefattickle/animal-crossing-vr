@@ -408,10 +408,16 @@ float pc_vr_world_scale(void) {
     return s_vr.world_scale;
 }
 
-int pc_vr_tool_input_allowed(void) {
+static int pcvr_player_tracking_allowed(void) {
     extern int g_pc_paused;
+    /* Avatar tracking is independent of tool gestures: dialogue may suppress
+     * swing/aim input, but must not invalidate live HMD/controller poses. */
     return s_vr.active && s_xr.focused && s_xr.resumed && s_vr.head_pose_valid && !g_pc_paused &&
-        pc_fp_view_is_active() && !pc_vr_flat_scene_active() && !pc_fp_in_talk();
+        pc_fp_view_is_active() && !pc_vr_flat_scene_active();
+}
+
+int pc_vr_tool_input_allowed(void) {
+    return pcvr_player_tracking_allowed() && !pc_fp_in_talk();
 }
 
 float pc_vr_head_yaw_offset_bang(void) {
@@ -424,7 +430,7 @@ float pc_vr_head_yaw_offset_bang(void) {
  * Grip targets are transformed back into game-world units; they never alter
  * actor/collision state. */
 int pc_vr_player_head_angles(short* pitch, short* yaw) {
-    if (!pitch || !yaw || !pc_vr_tool_input_allowed()) return 0;
+    if (!pitch || !yaw || !pcvr_player_tracking_allowed()) return 0;
     const float scale = 32768.0f / (float)PC_PI;
     float p = atan2f(-s_vr.head_pose[1][2],
                      hypotf(s_vr.head_pose[0][2], s_vr.head_pose[2][2]));
@@ -439,8 +445,8 @@ int pc_vr_player_head_angles(short* pitch, short* yaw) {
 }
 
 int pc_vr_player_hand_target(int hand, float out[3]) {
-    if (!out || hand < 0 || hand > 1 || !pc_vr_tool_input_allowed() ||
-        !s_vr.empty_hand_valid[hand]) return 0;
+    if (!out || hand < 0 || hand > 1 || !pcvr_player_tracking_allowed() ||
+        !s_vr.have_anchor || !s_vr.empty_hand_valid[hand]) return 0;
     M34 world;
     m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world);
     out[0] = world[0][3];
