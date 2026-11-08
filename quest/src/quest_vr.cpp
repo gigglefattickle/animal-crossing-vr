@@ -86,6 +86,10 @@ static struct {
     float world_scale, ui_distance, ui_size, height_offset, ui_dist_k;
     GLuint panel_prog, panel_vao, panel_vbo;
     GLint panel_u_mvp, panel_u_tex;
+    GLuint ray_prog, ray_vao, ray_vbo;
+    GLint ray_u_mvp, ray_u_color;
+    M34 inventory_ray_hit;
+    int inventory_ray_hit_valid;
     XrActionSet action_set;
     XrAction act_move, act_camera, act_a, act_b, act_x, act_y, act_l, act_r, act_z, act_start;
     XrAction act_trigger_l, act_trigger_r, act_hand_r, act_empty_hand[2], act_haptic_l, act_haptic_r;
@@ -229,6 +233,32 @@ static GLuint pcvr_compile(GLenum type, const char* src) {
         return 0;
     }
     return sh;
+}
+
+static int pcvr_create_ray_gl(void) {
+    static const char* vs_src =
+        "#version 300 es\\nprecision highp float;\\n"
+        "layout(location=0) in vec3 a_pos;\\n"
+        "uniform mat4 u_mvp;\\n"
+        "void main(){ gl_Position = u_mvp * vec4(a_pos, 1.0); }\\n";
+    static const char* fs_src =
+        "#version 300 es\\nprecision highp float;\\n"
+        "uniform vec4 u_color;\\n out vec4 frag;\\n"
+        "void main(){ frag = u_color; }\\n";
+    GLuint vs = pcvr_compile(GL_VERTEX_SHADER, vs_src), fs = pcvr_compile(GL_FRAGMENT_SHADER, fs_src);
+    if (!vs || !fs) return 0;
+    s_vr.ray_prog = glCreateProgram(); glAttachShader(s_vr.ray_prog, vs); glAttachShader(s_vr.ray_prog, fs);
+    glLinkProgram(s_vr.ray_prog); glDeleteShader(vs); glDeleteShader(fs);
+    GLint ok = 0; glGetProgramiv(s_vr.ray_prog, GL_LINK_STATUS, &ok);
+    if (!ok) { pcvr_log("ray shader link failed"); return 0; }
+    s_vr.ray_u_mvp = glGetUniformLocation(s_vr.ray_prog, "u_mvp");
+    s_vr.ray_u_color = glGetUniformLocation(s_vr.ray_prog, "u_color");
+    glGenVertexArrays(1, &s_vr.ray_vao); glGenBuffers(1, &s_vr.ray_vbo);
+    glBindVertexArray(s_vr.ray_vao); glBindBuffer(GL_ARRAY_BUFFER, s_vr.ray_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6, nullptr, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0); glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, (void*)0);
+    glBindVertexArray(0); glBindBuffer(GL_ARRAY_BUFFER, 0);
+    return 1;
 }
 
 static int pcvr_create_panel_gl(void) {
@@ -601,6 +631,16 @@ static void pcvr_draw_panel(int eye) {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     /* A small cyan reticle marks the exact panel hit point for the
      * controller ray. Draw after the panel so it remains visible. */
+    if (s_vr.inventory_ray_hit_valid) {
+        const float ray_vertices[6] = {s_vr.aim_pose[0][3], s_vr.aim_pose[1][3], s_vr.aim_pose[2][3],
+            s_vr.inventory_ray_hit[0][3], s_vr.inventory_ray_hit[1][3], s_vr.inventory_ray_hit[2][3]};
+        glUseProgram(s_vr.ray_prog); glUniformMatrix4fv(s_vr.ray_u_mvp, 1, GL_FALSE, column_major);
+        glUniform4f(s_vr.ray_u_color, 0.05f, 0.9f, 1.0f, 0.95f);
+        glBindVertexArray(s_vr.ray_vao); glBindBuffer(GL_ARRAY_BUFFER, s_vr.ray_vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(ray_vertices), ray_vertices);
+        glDrawArrays(GL_LINES, 0, 2);
+        glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(s_vr.panel_vao); glUseProgram(s_vr.panel_prog);
+    }
     if (s_vr.inventory_pointer_valid) {
         int px = (int)(s_vr.inventory_pointer_u * (float)s_vr.eye[eye].w);
         int py = (int)((1.0f - s_vr.inventory_pointer_v) * (float)s_vr.eye[eye].h);
