@@ -14,7 +14,7 @@ import android.widget.Button;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.TextView;\nimport android.widget.ImageView;\nimport android.graphics.BitmapFactory;\nimport android.util.Base64;
 import android.util.Log;
 
 import java.io.File;
@@ -102,6 +102,13 @@ public final class SetupActivity extends Activity {
         gameCard.setOrientation(LinearLayout.VERTICAL);
         gameCard.setPadding(22, 22, 22, 22);
         gameCard.setBackground(makeCardBackground());
+        ImageView cover = new ImageView(this);
+        cover.setImageBitmap(loadLauncherCover());
+        cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(-1, 220);
+        coverParams.bottomMargin = 18;
+        gameCard.addView(cover, coverParams);
+
         TextView gameTitle = new TextView(this);
         gameTitle.setText("Animal Crossing");
         gameTitle.setTextColor(android.graphics.Color.WHITE);
@@ -136,6 +143,20 @@ public final class SetupActivity extends Activity {
 
         setContentView(root);
         refreshState();
+    }
+
+    private android.graphics.Bitmap loadLauncherCover() {
+        try (InputStream input = getAssets().open("launcher-cover.jpg.b64");
+             java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[2048];
+            int count;
+            while ((count = input.read(buffer)) != -1) bytes.write(buffer, 0, count);
+            byte[] jpeg = Base64.decode(bytes.toByteArray(), Base64.DEFAULT);
+            return BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length);
+        } catch (Exception error) {
+            Log.w(TAG, "Launcher cover artwork unavailable", error);
+            return null;
+        }
     }
 
     private android.graphics.drawable.Drawable makeCardBackground() {
