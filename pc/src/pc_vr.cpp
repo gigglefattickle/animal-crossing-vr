@@ -214,6 +214,9 @@ static struct {
     M34 empty_hand_pose[2];     /* grip -> seated tracking, meters */
     int empty_hand_valid[2];    /* independent, current-frame tracking only */
     int empty_hand_seen[2];     /* whether each optional action has ever bound */
+    float player_hand_target_smooth[2][3]; /* filtered world-space arm endpoints */
+    int player_hand_target_smooth_valid[2];
+    u32 player_hand_target_smooth_stamp[2];
     int empty_hands_missing_logged;
     int empty_hands_available;  /* player draw confirmed no held item/action */
     u32 empty_hands_stamp;
@@ -1051,12 +1054,31 @@ extern "C" int pc_vr_player_hand_target(int hand, float out[3]) {
 
     M34 world_from_grip;
     m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world_from_grip);
+    float target[3];
     for (int row = 0; row < 3; ++row) {
-        if (!isfinite(world_from_grip[row][3])) return 0;
+        target[row] = world_from_grip[row][3];
+        if (!isfinite(target[row])) return 0;
     }
-    out[0] = world_from_grip[0][3];
-    out[1] = world_from_grip[1][3];
-    out[2] = world_from_grip[2][3];
+
+    /* Filter only the arm endpoint, not the player root or leg animation.
+     * Cache once per game frame because the skeleton may query a hand more
+     * than once while drawing shadows and the two stereo eyes. A moderate
+     * 0.68 response removes controller micro-jitter without making the arms
+     * feel sluggish; reacquisition snaps cleanly to the live tracked pose. */
+    if (!s_vr.player_hand_target_smooth_valid[hand]) {
+        for (int i = 0; i < 3; ++i)
+            s_vr.player_hand_target_smooth[hand][i] = target[i];
+        s_vr.player_hand_target_smooth_valid[hand] = 1;
+        s_vr.player_hand_target_smooth_stamp[hand] = pc_frame_counter;
+    } else if (s_vr.player_hand_target_smooth_stamp[hand] != pc_frame_counter) {
+        const float response = 0.68f;
+        for (int i = 0; i < 3; ++i)
+            s_vr.player_hand_target_smooth[hand][i] +=
+                (target[i] - s_vr.player_hand_target_smooth[hand][i]) * response;
+        s_vr.player_hand_target_smooth_stamp[hand] = pc_frame_counter;
+    }
+    for (int i = 0; i < 3; ++i)
+        out[i] = s_vr.player_hand_target_smooth[hand][i];
     return 1;
 }
 extern "C" int pc_vr_player_hand_angles(int hand, short player_yaw, short* pitch, short* yaw, short* roll) {
