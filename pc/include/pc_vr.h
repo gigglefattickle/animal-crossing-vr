@@ -72,6 +72,9 @@ void pc_vr_set_empty_hands_available(int available);
 /* Headset gaze yaw relative to the FP anchor (binary-angle units, positive
  * = left; 0 when inactive). Movement follows the gaze via this. */
 float pc_vr_head_yaw_offset_bang(void);
+/* First-person avatar tracking: head angles and controller grip targets in game-world units. */
+int pc_vr_player_head_angles(short* pitch, short* yaw);
+int pc_vr_player_hand_target(int hand, float out[3]);
 
 /* Live first-person gameplay with valid headset tracking. Synthetic tool
  * input and gaze targeting must not leak into dialogue, pause, or submenus. */
