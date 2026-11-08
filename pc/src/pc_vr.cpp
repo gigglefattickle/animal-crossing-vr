@@ -235,6 +235,8 @@ static struct {
     unsigned int frame_index;
 } s_vr;
 
+extern u32 pc_frame_counter; /* used by once-per-frame avatar hand filtering */
+
 float g_pc_vr_cull_expand = 0.0f;
 float g_pc_vr_cull_znear_slack = 0.0f;
 /* Whole-town actor residency: buildings, villagers and props stay spawned
