@@ -39,6 +39,9 @@ extern "C" {
 extern int g_pc_fp_mode;
 
 void pc_fp_init(void);      /* pull settings (after pc_settings_load) */
+/* Updated from the villager's animated head joint so the camera sits at its
+ * actual model height rather than a guessed human-height constant. */
+void pc_fp_set_player_head_height(float height_game_units);
 void pc_fp_toggle(void);
 
 /* --- called from the camera hook (m_camera2.c Camera2_SetView) --- */
