@@ -102,19 +102,34 @@ static void Player_actor_vr_adjust_arm(PLAYER_ACTOR* player, int joint_no, s_xyz
     const float local_right = dx * cosf(yaw) - dz * sinf(yaw);
     const float local_forward = dx * sinf(yaw) + dz * cosf(yaw);
     const float side = hand ? 1.0f : -1.0f;
+    /* Shoulder anchor is slightly out from the torso. Keep the signed
+     * lateral value so crossing a controller in front of the body remains
+     * representable instead of collapsing to a fixed two-unit reach. */
     const float lateral = side * (local_right - side * 8.0f);
-    const float safe_lateral = fmaxf(2.0f, lateral);
-    const float elevation = atan2f(dy, safe_lateral);
-    const float sweep = atan2f(local_forward, safe_lateral);
-    const float reach = sqrtf(lateral * lateral + dy * dy + local_forward * local_forward);
-    const float bend_ratio = fmaxf(0.20f, fminf(1.0f, reach / 25.0f));
-    const float elbow_bend = acosf(bend_ratio);
+    const float horizontal = sqrtf(lateral * lateral + local_forward * local_forward);
+    const float elevation = atan2f(dy, fmaxf(1.0f, horizontal));
+    const float sweep = atan2f(local_forward, lateral);
+    float reach = sqrtf(lateral * lateral + dy * dy + local_forward * local_forward);
+
+    /* The original first pass divided reach by 25 and clamped it to one.
+     * Most real controller positions are farther than 25 game units from
+     * the shoulder, so that made the elbow bend zero for almost every pose.
+     * Solve a two-bone arm with the villager's approximate 18+18 unit reach. */
+    const float upper_arm = 18.0f;
+    const float forearm = 18.0f;
+    const float max_reach = upper_arm + forearm - 0.5f;
+    if (reach > max_reach) reach = max_reach;
+    if (reach < 2.0f) reach = 2.0f;
+    float elbow_cos = (reach * reach - upper_arm * upper_arm - forearm * forearm) /
+                      (2.0f * upper_arm * forearm);
+    elbow_cos = fmaxf(-1.0f, fminf(1.0f, elbow_cos));
+    const float elbow_bend = acosf(elbow_cos);
 
     if (joint_no == mPlayer_JOINT_LARM_BASE || joint_no == mPlayer_JOINT_RARM_BASE) {
-        rot->y = (s16)(rot->y + Player_actor_vr_angle(sweep * 0.55f));
-        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elevation * 0.55f));
+        rot->y = (s16)(rot->y + Player_actor_vr_angle(sweep * 0.85f));
+        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elevation * 0.85f));
     } else {
-        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elbow_bend * 0.45f));
+        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elbow_bend * 0.65f));
     }
 }
 #endif
