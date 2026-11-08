@@ -16,6 +16,11 @@ static int failed, outdoors, have_environment, have_view, drawn, environment_act
 static uint32_t environment_frame;
 static float seconds, overcast, view[12];
 static GLint u_projection, u_rotation, u_environment;
+static GLint u_acww_sky, u_acww_clouds, u_acww_stars, u_acww_assets;
+static GLuint acww_sky_texture, acww_cloud_texture, acww_star_texture;
+static int acww_assets_checked, acww_assets_ready, acww_cloud_variant = -1, acww_palette_bank = -1;
+static unsigned char *acww_cloud_ncg, *acww_cloud_f0_map, *acww_cloud_c0_map, *acww_cloud_r0_map;
+static unsigned char *acww_cloud_f0_palette, *acww_cloud_r0_palette;
 
 static const char* vertex_source = PC_GLSL_HEADER R"GLSL(
 out vec2 screen;
@@ -31,6 +36,10 @@ out vec4 color;
 uniform vec4 projection; // P00, P11, P02, P12 (asymmetric per-eye frusta)
 uniform mat3 eye_to_world;
 uniform vec2 environment; // game seconds, overcast blend
+uniform sampler2D acww_sky_layer;
+uniform sampler2D acww_cloud_layer;
+uniform sampler2D acww_star_layer;
+uniform int acww_assets;
 const float PI = 3.14159265359;
 float hash(float n) { return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
 float oval(vec2 p, vec2 center, vec2 size) {
@@ -74,14 +83,20 @@ void main() {
     float night = max(1.0-smoothstep(5.0,7.0,hour),
                       smoothstep(18.0,20.5,hour));
     if (h > 0.10 && night > 0.001) {
-        vec2 starCell = vec2(azimuth*420.0,(h+0.15)*190.0);
-        vec2 starId = floor(starCell);
-        vec2 starLocal = fract(starCell)-0.5;
-        float starSeed = hash(starId.x+starId.y*733.0);
-        float starSize = mix(0.010,0.026,hash(starId.x*3.1+starId.y*17.7));
-        float star = (1.0-smoothstep(starSize,starSize+0.012,length(starLocal)))
-                   * step(0.986,starSeed);
-        sky += vec3(0.72,0.82,1.0)*star*night*0.72;
+        if (acww_assets != 0) {
+            vec4 stars = texture(acww_star_layer,
+                vec2(fract(azimuth), clamp((h-0.08)/0.88,0.0,1.0)));
+            sky = mix(sky,stars.rgb,stars.a*night);
+        } else {
+            vec2 starCell = vec2(azimuth*420.0,(h+0.15)*190.0);
+            vec2 starId = floor(starCell);
+            vec2 starLocal = fract(starCell)-0.5;
+            float starSeed = hash(starId.x+starId.y*733.0);
+            float starSize = mix(0.010,0.026,hash(starId.x*3.1+starId.y*17.7));
+            float star = (1.0-smoothstep(starSize,starSize+0.012,length(starLocal)))
+                       * step(0.986,starSeed);
+            sky += vec3(0.72,0.82,1.0)*star*night*0.72;
+        }
         vec2 moonPoint = vec2(azimuth-0.72,h-0.43);
         moonPoint.x = min(moonPoint.x,1.0-moonPoint.x);
         float moon = 1.0-smoothstep(0.035,0.043,length(moonPoint));
@@ -97,7 +112,7 @@ void main() {
     sky = mix(sky,horizon*0.76,land*(1.0-wet*0.5));
 
     // Periodic longitude, bounded drift (same time for both eyes), no cube seams.
-    if (h > 0.015 && h < 0.87) {
+    if (acww_assets == 0 && h > 0.015 && h < 0.87) {
         float latitude = asin(h);
         for (int row=0; row<3; ++row) {
             float r = float(row);
@@ -130,6 +145,15 @@ void main() {
                 }
             }
         }
+    }
+    if (acww_assets != 0) {
+        float drift = environment.x/86400.0;
+        vec2 sky_uv = vec2(fract(azimuth+drift*0.035), clamp((h+0.015)/0.34,0.0,1.0));
+        vec4 ww_sky = texture(acww_sky_layer,sky_uv);
+        sky = mix(sky,ww_sky.rgb,ww_sky.a);
+        vec2 cloud_uv = vec2(fract(azimuth+drift*0.11), clamp((h-0.015)/0.72,0.0,1.0));
+        vec4 ww_cloud = texture(acww_cloud_layer,cloud_uv);
+        sky = mix(sky,ww_cloud.rgb,ww_cloud.a);
     }
     color = vec4(sky,1.0);
 }
@@ -174,8 +198,192 @@ static int init(void) {
     u_projection = glGetUniformLocation(program,"projection");
     u_rotation = glGetUniformLocation(program,"eye_to_world");
     u_environment = glGetUniformLocation(program,"environment");
+    u_acww_sky = glGetUniformLocation(program,"acww_sky_layer");
+    u_acww_clouds = glGetUniformLocation(program,"acww_cloud_layer");
+    u_acww_stars = glGetUniformLocation(program,"acww_star_layer");
+    u_acww_assets = glGetUniformLocation(program,"acww_assets");
     fprintf(stdout,"[Sky] Outdoor sky renderer initialized\n");
     return 1;
+}
+
+static unsigned char* read_asset(const char* path, size_t expected, size_t* out_size) {
+    FILE* file = fopen(path,"rb");
+    if (!file) return NULL;
+    if (fseek(file,0,SEEK_END)!=0) { fclose(file); return NULL; }
+    long length = ftell(file);
+    if (length < 0 || (expected && (size_t)length != expected) || length > 2*1024*1024) {
+        fclose(file); return NULL;
+    }
+    rewind(file);
+    unsigned char* data = (unsigned char*)malloc((size_t)length);
+    if (!data || fread(data,1,(size_t)length,file)!=(size_t)length) {
+        free(data); fclose(file); return NULL;
+    }
+    fclose(file);
+    if (out_size) *out_size=(size_t)length;
+    return data;
+}
+
+static void nds_color_rgba(const unsigned char* palette, int index, unsigned char* out) {
+    unsigned value=(unsigned)palette[index*2] | ((unsigned)palette[index*2+1]<<8);
+    out[0]=(unsigned char)(((value&31u)*255u)/31u);
+    out[1]=(unsigned char)((((value>>5)&31u)*255u)/31u);
+    out[2]=(unsigned char)((((value>>10)&31u)*255u)/31u);
+    out[3]=255;
+}
+
+static unsigned char* decode_sky_strip(const unsigned char* ncg,const unsigned char* ncl,
+                                       const unsigned char* nsc) {
+    const int width=512,height=64;
+    unsigned char* rgba=(unsigned char*)calloc((size_t)width*height,4);
+    if (!rgba) return NULL;
+    for (int ty=0;ty<8;ty++) for (int tx=0;tx<64;tx++) {
+        int tile=nsc[ty*64+tx];
+        if (tile>=512) continue;
+        const unsigned char* src=ncg+tile*32;
+        for (int y=0;y<8;y++) for (int x=0;x<8;x++) {
+            unsigned char packed=src[y*4+x/2];
+            int color=(x&1)?(packed>>4):(packed&15);
+            if (!color) continue;
+            unsigned char* dst=rgba+(((ty*8+y)*width)+(tx*8+x))*4;
+            nds_color_rgba(ncl,color,dst);
+        }
+    }
+    return rgba;
+}
+
+static unsigned char* decode_star_map(const unsigned char* ncg,const unsigned char* ncl,
+                                      const unsigned char* nsc) {
+    const int width=256,height=256;
+    unsigned char* rgba=(unsigned char*)calloc((size_t)width*height,4);
+    if (!rgba) return NULL;
+    for (int ty=0;ty<32;ty++) for (int tx=0;tx<32;tx++) {
+        int entry=(int)nsc[(ty*32+tx)*2] | ((int)nsc[(ty*32+tx)*2+1]<<8);
+        int tile=(entry&255)-16;
+        if (tile<0 || tile>=16) continue;
+        const unsigned char* src=ncg+tile*32;
+        for (int y=0;y<8;y++) for (int x=0;x<8;x++) {
+            unsigned char packed=src[y*4+x/2];
+            int color=(x&1)?(packed>>4):(packed&15);
+            if (!color) continue;
+            unsigned char* dst=rgba+(((ty*8+y)*width)+(tx*8+x))*4;
+            nds_color_rgba(ncl,color,dst);
+        }
+    }
+    return rgba;
+}
+
+static unsigned char* decode_cloud_map(const unsigned char* ncg,const unsigned char* ncl,
+                                       const unsigned char* nsc,int palette_bank) {
+    const int width=512,height=128;
+    unsigned char* rgba=(unsigned char*)calloc((size_t)width*height,4);
+    if (!rgba) return NULL;
+    for (int ty=0;ty<16;ty++) for (int tx=0;tx<64;tx++) {
+        int tile=(int)nsc[ty*64+tx]-16;
+        if (tile<0 || tile>=32) continue;
+        const unsigned char* src=ncg+tile*64;
+        for (int y=0;y<8;y++) for (int x=0;x<8;x++) {
+            int color=src[y*8+x];
+            if (!color) continue;
+            int palette_index=palette_bank*16+(color&15);
+            if (palette_index>=192) continue;
+            unsigned char* dst=rgba+(((ty*8+y)*width)+(tx*8+x))*4;
+            nds_color_rgba(ncl,palette_index,dst);
+        }
+    }
+    return rgba;
+}
+
+static GLuint upload_rgba_texture(int width,int height,const unsigned char* pixels) {
+    GLuint texture=0;
+    glGenTextures(1,&texture);
+    if (!texture) return 0;
+    glBindTexture(GL_TEXTURE_2D,texture);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    return texture;
+}
+
+static int load_wild_world_assets(void) {
+    size_t n=0;
+    unsigned char* sky_ncg=read_asset("acww_sky/sky/d_2d_sky00_ncg.bin",16384,NULL);
+    unsigned char* sky_ncl=read_asset("acww_sky/sky/d_2d_sky00_ncl.bin",32,NULL);
+    unsigned char* sky_nsc=read_asset("acww_sky/sky/d_2d_sky00_nsc.bin",1024,NULL);
+    unsigned char* star_ncg=read_asset("acww_sky/sky/d_2d_star_ncg.bin",512,NULL);
+    unsigned char* star_ncl=read_asset("acww_sky/sky/d_2d_star_ncl.bin",32,NULL);
+    unsigned char* star_nsc=read_asset("acww_sky/sky/d_2d_star_nsc.bin",2048,NULL);
+    acww_cloud_ncg=read_asset("acww_sky/sky/d_2d_b_cld_bg_ncg.bin",2048,NULL);
+    acww_cloud_f0_map=read_asset("acww_sky/sky/d_2d_b_cld_f0_bg_nsc.bin",1024,NULL);
+    acww_cloud_c0_map=read_asset("acww_sky/sky/d_2d_b_cld_c0_bg_nsc.bin",1024,NULL);
+    acww_cloud_r0_map=read_asset("acww_sky/sky/d_2d_b_cld_r0_bg_nsc.bin",1024,NULL);
+    acww_cloud_f0_palette=read_asset("acww_sky/sky/d_2d_b_cld_f0_bg_ncl.bin",384,NULL);
+    acww_cloud_r0_palette=read_asset("acww_sky/sky/d_2d_b_cld_r0_bg_ncl.bin",384,NULL);
+    int ok=sky_ncg && sky_ncl && sky_nsc && star_ncg && star_ncl && star_nsc &&
+        acww_cloud_ncg && acww_cloud_f0_map && acww_cloud_c0_map && acww_cloud_r0_map &&
+        acww_cloud_f0_palette && acww_cloud_r0_palette;
+    if (ok) {
+        unsigned char* sky=decode_sky_strip(sky_ncg,sky_ncl,sky_nsc);
+        unsigned char* stars=decode_star_map(star_ncg,star_ncl,star_nsc);
+        unsigned char* clouds=decode_cloud_map(acww_cloud_ncg,acww_cloud_f0_palette,acww_cloud_f0_map,7);
+        if (sky && stars && clouds) {
+            acww_sky_texture=upload_rgba_texture(512,64,sky);
+            acww_star_texture=upload_rgba_texture(256,256,stars);
+            acww_cloud_texture=upload_rgba_texture(512,128,clouds);
+            acww_assets_ready=acww_sky_texture && acww_star_texture && acww_cloud_texture;
+            acww_cloud_variant=0; acww_palette_bank=7;
+        }
+        free(sky); free(stars); free(clouds);
+    }
+    free(sky_ncg); free(sky_ncl); free(sky_nsc);
+    free(star_ncg); free(star_ncl); free(star_nsc);
+    if (!acww_assets_ready) {
+        if (acww_sky_texture) glDeleteTextures(1,&acww_sky_texture);
+        if (acww_cloud_texture) glDeleteTextures(1,&acww_cloud_texture);
+        if (acww_star_texture) glDeleteTextures(1,&acww_star_texture);
+        acww_sky_texture=acww_cloud_texture=acww_star_texture=0;
+        free(acww_cloud_ncg); free(acww_cloud_f0_map); free(acww_cloud_c0_map); free(acww_cloud_r0_map);
+        free(acww_cloud_f0_palette); free(acww_cloud_r0_palette);
+        acww_cloud_ncg=acww_cloud_f0_map=acww_cloud_c0_map=acww_cloud_r0_map=NULL;
+        acww_cloud_f0_palette=acww_cloud_r0_palette=NULL;
+    } else {
+        fprintf(stdout,"[Sky] Imported Wild World sky layers loaded\n");
+    }
+    (void)n;
+    return acww_assets_ready;
+}
+
+static void update_wild_world_clouds(float game_seconds,float cloudiness) {
+    if (!acww_assets_ready || !acww_cloud_texture) return;
+    int bank=((int)(game_seconds/7200.0f))%12;
+    if (bank<0) bank=0;
+    int variant=cloudiness>0.68f ? 2 : (cloudiness>0.28f ? 1 : 0);
+    if (bank==acww_palette_bank && variant==acww_cloud_variant) return;
+    const unsigned char* map=variant==2 ? acww_cloud_r0_map :
+                             variant==1 ? acww_cloud_c0_map : acww_cloud_f0_map;
+    const unsigned char* palette=variant==2 ? acww_cloud_r0_palette : acww_cloud_f0_palette;
+    unsigned char* pixels=decode_cloud_map(acww_cloud_ncg,palette,map,bank);
+    if (!pixels) return;
+    glBindTexture(GL_TEXTURE_2D,acww_cloud_texture);
+    glTexSubImage2D(GL_TEXTURE_2D,0,0,0,512,128,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    free(pixels);
+    acww_cloud_variant=variant;
+    acww_palette_bank=bank;
+}
+
+static void free_wild_world_assets(void) {
+    if (acww_sky_texture) glDeleteTextures(1,&acww_sky_texture);
+    if (acww_cloud_texture) glDeleteTextures(1,&acww_cloud_texture);
+    if (acww_star_texture) glDeleteTextures(1,&acww_star_texture);
+    acww_sky_texture=acww_cloud_texture=acww_star_texture=0;
+    free(acww_cloud_ncg); free(acww_cloud_f0_map); free(acww_cloud_c0_map); free(acww_cloud_r0_map);
+    free(acww_cloud_f0_palette); free(acww_cloud_r0_palette);
+    acww_cloud_ncg=acww_cloud_f0_map=acww_cloud_c0_map=acww_cloud_r0_map=NULL;
+    acww_cloud_f0_palette=acww_cloud_r0_palette=NULL;
+    acww_assets_checked=acww_assets_ready=0;
+    acww_cloud_variant=acww_palette_bank=-1;
 }
 
 extern "C" void pc_sky_set_environment(int enabled, float time, float cloudiness) {
@@ -222,7 +430,13 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
         for (int c=0;c<3;c++) rotation[c*3+r]=row[c]/length;
     }
     if (!init()) return 0;
+    if (!acww_assets_checked) {
+        acww_assets_checked=1;
+        load_wild_world_assets();
+    }
+    if (acww_assets_ready) update_wild_world_clouds(seconds,overcast);
     GLint previous_program, previous_vao, depth_func;
+    GLint previous_active_texture, previous_texture0, previous_texture1, previous_texture2;
     pc_gl_depth_value depth_range[2];
     GLboolean depth_mask, color_mask[4];
     GLboolean depth = glIsEnabled(GL_DEPTH_TEST), blend = glIsEnabled(GL_BLEND);
@@ -231,6 +445,11 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
     GLboolean logic = glIsEnabled(GL_COLOR_LOGIC_OP);
 #endif
     glGetIntegerv(GL_CURRENT_PROGRAM,&previous_program);
+    glGetIntegerv(GL_ACTIVE_TEXTURE,&previous_active_texture);
+    glActiveTexture(GL_TEXTURE0); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture0);
+    glActiveTexture(GL_TEXTURE1); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture1);
+    glActiveTexture(GL_TEXTURE2); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture2);
+    glActiveTexture(GL_TEXTURE0);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&previous_vao);
     glGetIntegerv(GL_DEPTH_FUNC,&depth_func);
     pc_gl_get_depth_range(depth_range);
@@ -247,8 +466,17 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
     glUniform4f(u_projection,projection[0],projection[5],projection[2],projection[6]);
     glUniformMatrix3fv(u_rotation,1,GL_TRUE,rotation);
     glUniform2f(u_environment,seconds,overcast);
+    glUniform1i(u_acww_assets,acww_assets_ready ? 1 : 0);
+    glUniform1i(u_acww_sky,0); glUniform1i(u_acww_clouds,1); glUniform1i(u_acww_stars,2);
+    glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,acww_sky_texture);
+    glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,acww_cloud_texture);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,acww_star_texture);
     glDrawArrays(GL_TRIANGLES,0,3);
     // Exact restoration also preserves the GX renderer's cached state.
+    glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture0);
+    glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture1);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture2);
+    glActiveTexture((GLenum)previous_active_texture);
     glUseProgram(previous_program); glBindVertexArray(previous_vao);
     glDepthFunc(depth_func); glDepthMask(depth_mask);
     pc_gl_depth_range(depth_range[0],depth_range[1]);
@@ -265,6 +493,7 @@ extern "C" int pc_sky_draw(const float* projection, const float* correction) {
 }
 
 extern "C" void pc_sky_shutdown(void) {
+    free_wild_world_assets();
     if (program) glDeleteProgram(program);
     if (vao) glDeleteVertexArrays(1,&vao);
     program=vao=0; failed=have_environment=have_view=drawn=environment_active=0;
