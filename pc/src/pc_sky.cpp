@@ -125,7 +125,7 @@ void main() {
     sky = mix(sky,horizon*0.76,land*(1.0-wet*0.5));
 
     // Periodic longitude, bounded drift (same time for both eyes), no cube seams.
-    if (acww_assets == 0 && h > 0.015 && h < 0.87) {
+    if (h > 0.015 && h < 0.87) {
         float latitude = asin(h);
         for (int row=0; row<3; ++row) {
             float r = float(row);
@@ -159,15 +159,10 @@ void main() {
             }
         }
     }
-    if (acww_assets != 0) {
-        float drift = environment.x/86400.0;
-        vec2 sky_uv = vec2(fract(azimuth+drift*0.035), 1.0-clamp((h+0.015)/0.34,0.0,1.0));
-        vec4 ww_sky = texture(acww_sky_layer,sky_uv);
-        sky = mix(sky,ww_sky.rgb,ww_sky.a);
-        vec2 cloud_uv = vec2(fract(azimuth+drift*0.11), 1.0-clamp((h-0.015)/0.72,0.0,1.0));
-        vec4 ww_cloud = texture(acww_cloud_layer,cloud_uv);
-        sky = mix(sky,ww_cloud.rgb,ww_cloud.a);
-    }
+    /* The first imported cloud-map pass produced stretched tile bands on
+     * Quest. Keep the original Wild World star/moon art, but render the
+     * cloud banks with the stable procedural painterly layer until the NDS
+     * screen-map attributes are fully reconstructed. */
     color = vec4(sky,1.0);
 }
 )GLSL";
