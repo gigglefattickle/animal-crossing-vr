@@ -92,13 +92,19 @@ public final class SetupActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(24, 18, 24, 16);
-        root.setBackgroundColor(paleGreen);
+        android.graphics.drawable.GradientDrawable islandBackground =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                        new int[] { android.graphics.Color.rgb(231, 241, 211),
+                                android.graphics.Color.rgb(211, 230, 190),
+                                android.graphics.Color.rgb(194, 218, 171) });
+        root.setBackground(islandBackground);
 
         // Wide, soft-green welcome banner from the approved launcher concept.
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(18, 14, 18, 14);
-        header.setBackground(makeRoundedBackground(headerGreen, 24, 0));
+        header.setPadding(20, 16, 20, 16);
+        header.setBackground(makeRoundedBackground(headerGreen, 26, android.graphics.Color.rgb(151, 190, 125)));
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -132,7 +138,7 @@ public final class SetupActivity extends Activity {
 
         LinearLayout gameCard = new LinearLayout(this);
         gameCard.setOrientation(LinearLayout.VERTICAL);
-        gameCard.setPadding(16, 16, 16, 16);
+        gameCard.setPadding(18, 18, 18, 18);
         gameCard.setBackground(makeCardBackground());
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
         cardParams.topMargin = 18;
@@ -142,7 +148,7 @@ public final class SetupActivity extends Activity {
         cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
         cover.setBackground(makeRoundedBackground(android.graphics.Color.rgb(205, 224, 184), 18, 0));
         cover.setClipToOutline(true);
-        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(-1, 190);
+        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(-1, 205);
         coverParams.bottomMargin = 14;
         gameCard.addView(cover, coverParams);
 
@@ -161,7 +167,7 @@ public final class SetupActivity extends Activity {
         gameCard.addView(status, statusParams);
 
         playButton = new Button(this);
-        playButton.setText("▶  PLAY");
+        playButton.setText("PLAY");
         styleLauncherButton(playButton, true, leafGreen, deepGreen, cream);
         playButton.setTextSize(18);
         playButton.setOnClickListener(v -> launchGame());
@@ -170,21 +176,21 @@ public final class SetupActivity extends Activity {
         gameCard.addView(playButton, playParams);
         root.addView(gameCard, cardParams);
 
-        // Four large, evenly sized shortcut tiles matching the concept image.
+        // Main launcher shortcuts: import and save tools stay one tap away.
         LinearLayout firstRow = new LinearLayout(this);
         firstRow.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, 62);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, 64);
         rowParams.topMargin = 14;
-        addLauncherTile(firstRow, "Import ROM", () -> chooseGame(), leafGreen, deepGreen, cream);
-        addLauncherTile(firstRow, "✨  Coming Soon", () -> showComingSoon(), leafGreen, deepGreen, cream);
+        addLauncherTile(firstRow, "IMPORT ROM", () -> chooseGame(), leafGreen, deepGreen, cream);
+        addLauncherTile(firstRow, "SAVE MANAGER", () -> showSaveManager(), leafGreen, deepGreen, cream);
         root.addView(firstRow, rowParams);
 
+        // Controller bindings remain available from the single Settings button.
         LinearLayout secondRow = new LinearLayout(this);
         secondRow.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams secondRowParams = new LinearLayout.LayoutParams(-1, 62);
+        LinearLayout.LayoutParams secondRowParams = new LinearLayout.LayoutParams(-1, 58);
         secondRowParams.topMargin = 9;
-        addLauncherTile(secondRow, "💾  Save Manager", () -> showSaveManager(), leafGreen, deepGreen, cream);
-        addLauncherTile(secondRow, "🎮  Controller Setup", () -> showControllerBindings(), leafGreen, deepGreen, cream);
+        addLauncherTile(secondRow, "COMING SOON", () -> showComingSoon(), leafGreen, deepGreen, cream);
         root.addView(secondRow, secondRowParams);
 
         TextView versionFooter = new TextView(this);
@@ -215,10 +221,10 @@ public final class SetupActivity extends Activity {
             int leafGreen, int deepGreen, int cream) {
         Button tile = new Button(this);
         tile.setText(label);
-        tile.setTextSize(12);
+        tile.setTextSize(13);
         tile.setAllCaps(false);
         tile.setSingleLine(false);
-        tile.setPadding(4, 4, 4, 4);
+        tile.setPadding(8, 6, 8, 6);
         tile.setBackground(makeRoundedBackground(cream, 18,
                 android.graphics.Color.rgb(166, 201, 140)));
         tile.setTextColor(deepGreen);
@@ -269,8 +275,8 @@ public final class SetupActivity extends Activity {
 
     private android.graphics.drawable.Drawable makeCardBackground() {
         android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
-        shape.setColor(android.graphics.Color.rgb(255, 249, 229));
-        shape.setCornerRadius(26.0f);
+        shape.setColor(android.graphics.Color.rgb(255, 251, 235));
+        shape.setCornerRadius(28.0f);
         shape.setStroke(2, android.graphics.Color.rgb(166, 201, 140));
         return shape;
     }
