@@ -126,7 +126,7 @@ final class ContentImporter {
         StringBuilder clean = new StringBuilder();
         for (String part : parts) {
             if (part.length() == 0 || part.equals(".") || part.equals("..")) return null;
-            if (part.indexOf(':') >= 0 || part.indexOf('\u0000') >= 0) return null;
+            if (part.indexOf(':') >= 0 || part.indexOf(0) >= 0) return null;
             if (clean.length() > 0) clean.append('/');
             clean.append(part);
         }
