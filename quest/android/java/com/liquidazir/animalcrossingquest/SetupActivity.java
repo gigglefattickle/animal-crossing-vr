@@ -468,6 +468,8 @@ public final class SetupActivity extends Activity {
             writer.newLine();
             writer.write(Diagnostics.readPreviousCrash(this));
             writer.newLine();
+            writer.write(Diagnostics.readRuntimeSnapshot(this));
+            writer.newLine();
             writer.write("Native fatal-signal capture (registers at fault; not a symbolicated stack):");
             writer.newLine();
             appendDiagnosticFile(writer, "native-crash.txt", 16 * 1024);
