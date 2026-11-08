@@ -71,6 +71,53 @@ static int Player_actor_draw_Before_FirstPersonVR(GAME* game, cKF_SkeletonInfo_R
 }
 #endif
 
+#ifdef TARGET_PC
+/* Additive upper-body IK: the stock villager animation remains the base pose.
+ * Only ordinary locomotion is overlaid; tools, sitting, dialogue and scripted
+ * actions retain their authored arm choreography. No leg joint is modified. */
+static s16 Player_actor_vr_angle(float radians) {
+    return (s16)(int)(radians * (32768.0f / 3.14159265358979323846f));
+}
+
+static void Player_actor_vr_adjust_arm(PLAYER_ACTOR* player, int joint_no, s_xyz* rot) {
+    int hand = (joint_no == mPlayer_JOINT_RARM_BASE || joint_no == mPlayer_JOINT_RARM1) ? 1 : 0;
+    float target[3];
+    if (!pc_vr_active() || !pc_fp_view_is_active() ||
+        (player->now_main_index != mPlayer_INDEX_WAIT &&
+         player->now_main_index != mPlayer_INDEX_WALK &&
+         player->now_main_index != mPlayer_INDEX_RUN &&
+         player->now_main_index != mPlayer_INDEX_DASH &&
+         player->now_main_index != mPlayer_INDEX_WADE) ||
+        !pc_vr_player_hand_target(hand, target)) {
+        return;
+    }
+
+    const float pi = 3.14159265358979323846f;
+    const float yaw = (float)(u16)player->actor_class.shape_info.rotation.y *
+                      (2.0f * pi / 65536.0f);
+    const float dx = target[0] - player->actor_class.world.position.x;
+    const float dy = target[1] - (player->actor_class.world.position.y + 38.0f);
+    const float dz = target[2] - player->actor_class.world.position.z;
+    const float local_right = dx * cosf(yaw) - dz * sinf(yaw);
+    const float local_forward = dx * sinf(yaw) + dz * cosf(yaw);
+    const float side = hand ? 1.0f : -1.0f;
+    const float lateral = side * (local_right - side * 8.0f);
+    const float safe_lateral = fmaxf(2.0f, lateral);
+    const float elevation = atan2f(dy, safe_lateral);
+    const float sweep = atan2f(local_forward, safe_lateral);
+    const float reach = sqrtf(lateral * lateral + dy * dy + local_forward * local_forward);
+    const float bend_ratio = fmaxf(0.20f, fminf(1.0f, reach / 25.0f));
+    const float elbow_bend = acosf(bend_ratio);
+
+    if (joint_no == mPlayer_JOINT_LARM_BASE || joint_no == mPlayer_JOINT_RARM_BASE) {
+        rot->y = (s16)(rot->y + Player_actor_vr_angle(sweep * 0.55f));
+        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elevation * 0.55f));
+    } else {
+        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elbow_bend * 0.45f));
+    }
+}
+#endif
+
 static int Player_actor_draw_Before(GAME* game, cKF_SkeletonInfo_R_c* kf, int joint_no, Gfx** gfx_pp, u8* work_flag,
                                     void* arg, s_xyz* rot, xyz_t* pos) {
     // clang-format off
@@ -109,6 +156,12 @@ static int Player_actor_draw_Before(GAME* game, cKF_SkeletonInfo_R_c* kf, int jo
     if (joint_no >= 0 && joint_no < mPlayer_JOINT_NUM && proc[joint_no] != NULL) {
         (*proc[joint_no])(actorx, game, kf, gfx_pp, work_flag, rot, pos);
     }
+#ifdef TARGET_PC
+    if (joint_no == mPlayer_JOINT_LARM_BASE || joint_no == mPlayer_JOINT_LARM1 ||
+        joint_no == mPlayer_JOINT_RARM_BASE || joint_no == mPlayer_JOINT_RARM1) {
+        Player_actor_vr_adjust_arm((PLAYER_ACTOR*)actorx, joint_no, rot);
+    }
+#endif
 
     return TRUE;
 }
@@ -252,6 +305,19 @@ static void Player_actor_draw_Normal(ACTOR* actorx, GAME* game) {
     mouth_tex_p = Player_actor_Get_mouth_tex_p(actorx);
     graph = game->graph;
     moving_in_boat = FALSE;
+
+#ifdef TARGET_PC
+    /* Track the villager's head from the HMD while preserving the original
+     * head mesh suppression used to avoid first-person face clipping. */
+    if (pc_vr_active()) {
+        short head_pitch, head_yaw;
+        if (pc_vr_player_head_angles(&head_pitch, &head_yaw)) {
+            player->head_angle.x = head_pitch;
+            player->head_angle.y = head_yaw;
+            player->head_angle.z = 0;
+        }
+    }
+#endif
 
     _texture_z_light_fog_prim(graph);
     OPEN_POLY_OPA_DISP(graph);
