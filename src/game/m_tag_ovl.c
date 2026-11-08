@@ -8090,10 +8090,11 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
         if (menu_info->menu_type != mSM_OVL_INVENTORY ||
             menu_info->data0 != mSM_IV_OPEN_NORMAL) {
             quest_dragging = quest_drop_pending = 0;
-        } else if (pointer_valid && tag_ovl->sel_tag_idx == 0 &&
-                   tag->type == mTG_TYPE_NONE &&
-                   (quest_dragging || (hand_ovl->info.wait_timer == 0 &&
-                                       hand_ovl->info.move_flag == FALSE))) {
+        } else if (pointer_valid &&
+                   ((quest_dragging && tag_ovl->tags[0].type == mTG_TYPE_NONE) ||
+                    (tag_ovl->sel_tag_idx == 0 && tag->type == mTG_TYPE_NONE &&
+                     hand_ovl->info.wait_timer == 0 && hand_ovl->info.move_flag == FALSE))) {
+            mTG_tag_c* pointer_tag = &tag_ovl->tags[0];
             const float panel_x = (u - 0.5f) * 320.0f;
             const float panel_y = (0.5f - v) * 240.0f;
             int i;
@@ -8110,25 +8111,24 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
 
             grid_hit = best_x < 12.5f && best_y < 12.5f;
             if (grid_hit) {
-                int changed = tag->table != mTG_TABLE_ITEM ||
-                              tag->tag_col != col || tag->tag_row != row;
+                int changed = pointer_tag->table != mTG_TABLE_ITEM ||
+                              pointer_tag->tag_col != col || pointer_tag->tag_row != row;
                 if (changed) {
-                    tag->table = mTG_TABLE_ITEM;
-                    tag->tag_col = col;
-                    tag->tag_row = row;
+                    pointer_tag->table = mTG_TABLE_ITEM;
+                    pointer_tag->tag_col = col;
+                    pointer_tag->tag_row = row;
                     mTG_init_tag_data_item_win(submenu);
-                    tag = &tag_ovl->tags[0];
+                    pointer_tag = &tag_ovl->tags[0];
                 }
 
                 /* Start a drag only from a real, selectable pocket. */
                 if (trigger_pressed && !quest_dragging && !quest_drop_pending &&
-                    mTG_check_hand_condition(submenu) &&
-                    mTG_check_move_proc(submenu, tag) &&
-                    Now_Private->inventory.pockets[mTG_get_table_idx(tag)] != EMPTY_NO) {
+                    tag_ovl->sel_tag_idx == 0 && mTG_check_hand_condition(submenu) &&
+                    mTG_check_move_proc(submenu, pointer_tag) &&
+                    Now_Private->inventory.pockets[mTG_get_table_idx(pointer_tag)] != EMPTY_NO) {
                     submenu->overlay->menu_control.trigger &= ~BUTTON_A;
                     mTG_catch_proc(submenu, menu_info);
                     quest_dragging = hand_ovl->info.item != EMPTY_NO;
-                    tag = &tag_ovl->tags[0];
                 }
             }
         }
@@ -8156,8 +8156,10 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
             quest_drop_valid = 0;
         }
 
-        if (quest_dragging && hand_ovl->info.item == EMPTY_NO) {
+        if ((quest_dragging || quest_drop_pending) && hand_ovl->info.item == EMPTY_NO) {
             quest_dragging = 0;
+            quest_drop_pending = 0;
+            quest_drop_valid = 0;
         }
     }
 
