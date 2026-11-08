@@ -85,11 +85,18 @@ public final class SetupActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(28, 24, 28, 24);
-        root.setBackgroundColor(android.graphics.Color.rgb(18, 20, 25));
+        // Cozy Animal Crossing-inspired launcher palette: leaf green, warm cream,
+        // and soft garden colors. Kept native so it remains lightweight on Quest.
+        final int leafGreen = android.graphics.Color.rgb(61, 117, 72);
+        final int deepGreen = android.graphics.Color.rgb(49, 91, 57);
+        final int softGreen = android.graphics.Color.rgb(224, 241, 211);
+        final int cream = android.graphics.Color.rgb(255, 249, 229);
+        final int warmText = android.graphics.Color.rgb(74, 82, 58);
+        root.setBackgroundColor(android.graphics.Color.rgb(220, 239, 204));
 
         TextView heading = new TextView(this);
         heading.setText("ANIMAL CROSSING");
-        heading.setTextColor(android.graphics.Color.WHITE);
+        heading.setTextColor(deepGreen);
         heading.setTextSize(24);
         heading.setLetterSpacing(0.12f);
         heading.setGravity(Gravity.CENTER);
@@ -97,7 +104,7 @@ public final class SetupActivity extends Activity {
 
         TextView subtitle = new TextView(this);
         subtitle.setText("GAME LIBRARY");
-        subtitle.setTextColor(android.graphics.Color.LTGRAY);
+        subtitle.setTextColor(leafGreen);
         subtitle.setTextSize(12);
         subtitle.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(-1, 42);
@@ -117,11 +124,11 @@ public final class SetupActivity extends Activity {
 
         TextView gameTitle = new TextView(this);
         gameTitle.setText("Animal Crossing");
-        gameTitle.setTextColor(android.graphics.Color.WHITE);
+        gameTitle.setTextColor(deepGreen);
         gameTitle.setTextSize(22);
         gameCard.addView(gameTitle);
         status = new TextView(this);
-        status.setTextColor(android.graphics.Color.LTGRAY);
+        status.setTextColor(warmText);
         status.setTextSize(14);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
         statusParams.topMargin = 10;
@@ -129,6 +136,7 @@ public final class SetupActivity extends Activity {
 
         playButton = new Button(this);
         playButton.setText("PLAY");
+        styleLauncherButton(playButton, true, leafGreen, deepGreen, cream);
         playButton.setOnClickListener(v -> launchGame());
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, -2);
         playParams.topMargin = 22;
@@ -137,6 +145,7 @@ public final class SetupActivity extends Activity {
 
         Button addGame = new Button(this);
         addGame.setText("Add / Change Game File");
+        styleLauncherButton(addGame, false, leafGreen, deepGreen, cream);
         addGame.setOnClickListener(v -> chooseGame());
         LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, -2);
         actionParams.topMargin = 18;
@@ -144,11 +153,13 @@ public final class SetupActivity extends Activity {
 
         Button options = new Button(this);
         options.setText("OPTIONS");
+        styleLauncherButton(options, false, leafGreen, deepGreen, cream);
         options.setOnClickListener(v -> showOptions());
         root.addView(options, actionParams);
 
         Button crashReport = new Button(this);
         crashReport.setText("CRASH REPORT / EXPORT");
+        styleLauncherButton(crashReport, false, leafGreen, deepGreen, cream);
         crashReport.setOnClickListener(v -> exportDiagnostics());
         LinearLayout.LayoutParams crashParams = new LinearLayout.LayoutParams(-1, -2);
         crashParams.topMargin = 10;
@@ -174,10 +185,28 @@ public final class SetupActivity extends Activity {
 
     private android.graphics.drawable.Drawable makeCardBackground() {
         android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
-        shape.setColor(android.graphics.Color.rgb(31, 35, 43));
-        shape.setCornerRadius(22.0f);
-        shape.setStroke(1, android.graphics.Color.rgb(65, 72, 84));
+        shape.setColor(android.graphics.Color.rgb(255, 249, 229));
+        shape.setCornerRadius(26.0f);
+        shape.setStroke(2, android.graphics.Color.rgb(166, 201, 140));
         return shape;
+    }
+
+    private void styleLauncherButton(Button button, boolean primary, int leafGreen,
+            int deepGreen, int cream) {
+        android.graphics.drawable.GradientDrawable background =
+                new android.graphics.drawable.GradientDrawable();
+        background.setColor(primary ? leafGreen : cream);
+        background.setCornerRadius(18.0f);
+        background.setStroke(2, primary ? deepGreen :
+                android.graphics.Color.rgb(166, 201, 140));
+        button.setBackground(background);
+        button.setTextColor(primary ? android.graphics.Color.WHITE : deepGreen);
+        button.setAllCaps(!primary);
+        button.setLetterSpacing(0.04f);
+        button.setPadding(18, 12, 18, 12);
+        if (Build.VERSION.SDK_INT >= 21) {
+            button.setElevation(primary ? 5.0f : 2.0f);
+        }
     }
 
     private void showOptions() {
