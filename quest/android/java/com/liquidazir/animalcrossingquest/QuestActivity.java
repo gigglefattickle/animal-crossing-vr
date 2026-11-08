@@ -36,6 +36,11 @@ public class QuestActivity extends SDLActivity {
         super.onCreate(state);
         Diagnostics.record(this, "quest_activity.super_onCreate_returned");
     }
+    // Called from native startup checkpoints; each record is fsynced so it survives SIGSEGV.
+    public void recordNativeCheckpoint(String event) {
+        Diagnostics.record(this, "native." + event);
+    }
+
     // Called by the native OpenXR backend before action bindings are suggested.
     public String getControllerBinding(String key) {
         File file = new File(getFilesDir(), "settings.ini");
