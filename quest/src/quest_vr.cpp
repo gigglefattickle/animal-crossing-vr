@@ -509,16 +509,24 @@ int pc_vr_player_head_angles(short* pitch, short* yaw) {
 }
 
 int pc_vr_player_hand_target(int hand, float out[3]) {
-    if (!out || hand < 0 || hand > 1 || !pcvr_player_tracking_allowed() ||
-        !s_vr.have_anchor || !s_vr.empty_hand_valid[hand]) return 0;
+    /* Keep the filter state per controller. If tracking drops, invalidate its
+     * history so a controller reacquired at a new pose snaps to the real hand
+     * position instead of easing from a stale position left behind in space. */
+    static float smoothed[2][3];
+    static u32 smoothed_frame[2] = {(u32)-1, (u32)-1};
+    static int smoothed_valid[2] = {0, 0};
+    if (hand < 0 || hand > 1) return 0;
+    if (!out || !pcvr_player_tracking_allowed() || !s_vr.have_anchor ||
+        !s_vr.empty_hand_valid[hand]) {
+        smoothed_valid[hand] = 0;
+        smoothed_frame[hand] = (u32)-1;
+        return 0;
+    }
 
     /* Convert the live grip pose to game units before smoothing. The player
      * skeleton asks for each arm target more than once in a frame, so stamp
      * the filter and advance it only once per game frame. This removes small
      * controller-position jitter without adding frame-rate-dependent lag. */
-    static float smoothed[2][3];
-    static u32 smoothed_frame[2] = {(u32)-1, (u32)-1};
-    static int smoothed_valid[2] = {0, 0};
     M34 world;
     m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world);
     float target[3] = {world[0][3], world[1][3], world[2][3]};
