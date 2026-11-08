@@ -243,11 +243,57 @@ public final class SetupActivity extends Activity {
     }
 
     private void showSaveManager() {
-        String[] actions = {"Load Save", "Export Save"};
+        String[] actions = {"Create Recovery Snapshot", "Restore Recovery Snapshot", "Load Save Archive", "Export Save"};
         new AlertDialog.Builder(this).setTitle("Save Manager")
             .setItems(actions, (dialog, which) -> {
-                if (which == 0) chooseSaveArchive();
+                if (which == 0) createRecoverySnapshot();
+                else if (which == 1) chooseRecoverySnapshot();
+                else if (which == 2) chooseSaveArchive();
                 else exportSaveArchive();
+            }).show();
+    }
+
+    private void createRecoverySnapshot() {
+        try {
+            File snapshot = SaveRecovery.createSnapshot(this, "Manual");
+            if (snapshot == null) showResult("No memory-card saves found to snapshot.", false);
+            else {
+                Diagnostics.record(this, "save.recovery_snapshot_created source=manual name=" + snapshot.getName());
+                showResult("Recovery snapshot created: " + SaveRecovery.describe(snapshot), true);
+            }
+        } catch (Exception error) {
+            Diagnostics.record(this, "save.recovery_snapshot_failed " + Log.getStackTraceString(error));
+            showResult("Recovery snapshot failed: " + error.getMessage(), false);
+        }
+    }
+
+    private void chooseRecoverySnapshot() {
+        File[] snapshots = SaveRecovery.listSnapshots(this);
+        if (snapshots.length == 0) {
+            showResult("No recovery snapshots are available yet. A snapshot is created before each game launch.", false);
+            return;
+        }
+        String[] labels = new String[snapshots.length];
+        for (int i = 0; i < snapshots.length; i++) labels[i] = SaveRecovery.describe(snapshots[i]);
+        new AlertDialog.Builder(this).setTitle("Restore Recovery Snapshot")
+            .setMessage("Restoring replaces both current memory-card slots. A safety copy of the current cards is made first.")
+            .setItems(labels, (dialog, which) -> confirmRestoreSnapshot(snapshots[which]))
+            .setNegativeButton("Cancel", null).show();
+    }
+
+    private void confirmRestoreSnapshot(File snapshot) {
+        new AlertDialog.Builder(this).setTitle("Restore this snapshot?")
+            .setMessage(SaveRecovery.describe(snapshot) + "\\nYour current memory-card files will be backed up before replacement.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Restore", (dialog, which) -> {
+                try {
+                    SaveRecovery.restoreSnapshot(this, snapshot);
+                    Diagnostics.record(this, "save.recovery_snapshot_restored name=" + snapshot.getName());
+                    showResult("Recovery snapshot restored. Press Play to load it.", true);
+                } catch (Exception error) {
+                    Diagnostics.record(this, "save.recovery_snapshot_restore_failed " + Log.getStackTraceString(error));
+                    showResult("Restore failed: " + error.getMessage(), false);
+                }
             }).show();
     }
 
@@ -875,6 +921,9 @@ public final class SetupActivity extends Activity {
         }
         Diagnostics.record(this, "launcher.play_pressed game=" + importedGame().getName());
         try {
+            File recovery = SaveRecovery.createSnapshot(this, "Before game launch");
+            Diagnostics.record(this, recovery == null ? "save.recovery_snapshot_skipped no_card_saves" :
+                    "save.recovery_snapshot_created source=auto name=" + recovery.getName());
             startActivity(new Intent(this, QuestActivity.class));
         } catch (RuntimeException error) {
             Diagnostics.record(this, "launcher.start_activity_failed " + Log.getStackTraceString(error));
