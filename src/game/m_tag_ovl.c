@@ -8148,7 +8148,7 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
              hand_ovl->info.act == mHD_ACTION_SASU)) {
             tag = &tag_ovl->tags[0];
             submenu->overlay->menu_control.trigger &= ~BUTTON_A;
-            if (quest_drop_valid) {
+            if (quest_drop_valid && mTG_check_move_proc(submenu, tag)) {
                 mTG_drop_item(submenu, menu_info, tag);
             } else {
                 mTG_move_cancel(submenu, menu_info, tag);
