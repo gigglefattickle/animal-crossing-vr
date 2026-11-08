@@ -92,29 +92,54 @@ static bool pcvr_input_init(void) {
     };
     for (auto& action : actions)
         if (!pcvr_create_action(action.handle, action.type, action.name, action.label)) return false;
-    struct Binding { XrAction action; const char* path; } paths[] = {
-        {s_vr.act_move, "/user/hand/left/input/thumbstick"},
-        {s_vr.act_camera, "/user/hand/right/input/thumbstick"},
-        {s_vr.act_a, "/user/hand/right/input/a/click"},
-        {s_vr.act_b, "/user/hand/right/input/b/click"},
-        {s_vr.act_x, "/user/hand/left/input/x/click"},
-        {s_vr.act_y, "/user/hand/left/input/y/click"},
-        {s_vr.act_l, "/user/hand/left/input/squeeze/value"},
-        {s_vr.act_r, "/user/hand/right/input/squeeze/value"},
-        {s_vr.act_trigger_l, "/user/hand/left/input/trigger/value"},
-        {s_vr.act_trigger_r, "/user/hand/right/input/trigger/value"},
-        {s_vr.act_z, "/user/hand/right/input/thumbstick/click"},
-        {s_vr.act_start, "/user/hand/left/input/thumbstick/click"},
-        {s_vr.act_hand_r, "/user/hand/right/input/aim/pose"},
-        {s_vr.act_empty_hand[0], "/user/hand/left/input/grip/pose"},
-        {s_vr.act_empty_hand[1], "/user/hand/right/input/grip/pose"},
-        {s_vr.act_haptic_l, "/user/hand/left/output/haptic"},
-        {s_vr.act_haptic_r, "/user/hand/right/output/haptic"}
+    struct Binding { XrAction action; const char* setting; const char* path; } paths[] = {
+        {s_vr.act_move, "bind_move", "/user/hand/left/input/thumbstick"},
+        {s_vr.act_camera, "bind_camera", "/user/hand/right/input/thumbstick"},
+        {s_vr.act_a, "bind_a", "/user/hand/right/input/a/click"},
+        {s_vr.act_b, "bind_b", "/user/hand/right/input/b/click"},
+        {s_vr.act_x, "bind_x", "/user/hand/left/input/x/click"},
+        {s_vr.act_y, "bind_y", "/user/hand/left/input/y/click"},
+        {s_vr.act_l, "bind_left_grip", "/user/hand/left/input/squeeze/value"},
+        {s_vr.act_r, "bind_right_grip", "/user/hand/right/input/squeeze/value"},
+        {s_vr.act_trigger_l, "bind_left_trigger", "/user/hand/left/input/trigger/value"},
+        {s_vr.act_trigger_r, "bind_right_trigger", "/user/hand/right/input/trigger/value"},
+        {s_vr.act_z, "bind_z", "/user/hand/right/input/thumbstick/click"},
+        {s_vr.act_start, "bind_start", "/user/hand/left/input/thumbstick/click"},
+        {s_vr.act_hand_r, nullptr, "/user/hand/right/input/aim/pose"},
+        {s_vr.act_empty_hand[0], nullptr, "/user/hand/left/input/grip/pose"},
+        {s_vr.act_empty_hand[1], nullptr, "/user/hand/right/input/grip/pose"},
+        {s_vr.act_haptic_l, nullptr, "/user/hand/left/output/haptic"},
+        {s_vr.act_haptic_r, nullptr, "/user/hand/right/output/haptic"}
     };
     QuestHostVector<XrActionSuggestedBinding> bindings;
     for (const auto& binding : paths) {
+        std::string selected = binding.path;
+        if (binding.setting && s_vm && s_activity) {
+            JNIEnv* env = nullptr;
+            bool detach = false;
+            jint env_status = s_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+            if (env_status == JNI_EDETACHED &&
+                s_vm->AttachCurrentThread(&env, nullptr) == JNI_OK) detach = true;
+            if (env && (env_status == JNI_OK || detach)) {
+                jclass cls = env->GetObjectClass(s_activity);
+                jmethodID method = cls ? env->GetMethodID(cls, "getControllerBinding",
+                                                           "(Ljava/lang/String;)Ljava/lang/String;") : nullptr;
+                jstring key = method ? env->NewStringUTF(binding.setting) : nullptr;
+                jstring value = key ? static_cast<jstring>(env->CallObjectMethod(s_activity, method, key)) : nullptr;
+                if (env->ExceptionCheck()) { env->ExceptionClear(); value = nullptr; }
+                if (value) {
+                    const char* chars = env->GetStringUTFChars(value, nullptr);
+                    if (chars && chars[0] == '/') selected.assign(chars);
+                    if (chars) env->ReleaseStringUTFChars(value, chars);
+                    env->DeleteLocalRef(value);
+                }
+                if (key) env->DeleteLocalRef(key);
+                if (cls) env->DeleteLocalRef(cls);
+            }
+            if (detach) s_vm->DetachCurrentThread();
+        }
         XrPath path;
-        if (!s_xr.check(xrStringToPath(s_xr.instance, binding.path, &path), "controller binding path")) return false;
+        if (!s_xr.check(xrStringToPath(s_xr.instance, selected.c_str(), &path), "controller binding path")) return false;
         bindings.push_back({binding.action, path});
     }
     XrInteractionProfileSuggestedBinding suggested = {XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
