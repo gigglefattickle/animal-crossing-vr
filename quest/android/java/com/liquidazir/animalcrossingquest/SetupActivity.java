@@ -176,7 +176,7 @@ public final class SetupActivity extends Activity {
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, 62);
         rowParams.topMargin = 14;
         addLauncherTile(firstRow, "📂  Load Game", () -> chooseGame(), leafGreen, deepGreen, cream);
-        addLauncherTile(firstRow, "⚙  Settings", () -> showOptions(), leafGreen, deepGreen, cream);
+        addLauncherTile(firstRow, "✨  Coming Soon", () -> showComingSoon(), leafGreen, deepGreen, cream);
         root.addView(firstRow, rowParams);
 
         LinearLayout secondRow = new LinearLayout(this);
@@ -237,12 +237,20 @@ public final class SetupActivity extends Activity {
     }
 
     private void showSaveManager() {
-        String[] actions = {"Load Save Archive", "Export Save Archive"};
+        String[] actions = {"Load Save", "Export Save"};
         new AlertDialog.Builder(this).setTitle("Save Manager")
             .setItems(actions, (dialog, which) -> {
                 if (which == 0) chooseSaveArchive();
                 else exportSaveArchive();
             }).show();
+    }
+
+    private void showComingSoon() {
+        new AlertDialog.Builder(this)
+            .setTitle("Coming Soon")
+            .setMessage("More launcher features are on the way!")
+            .setPositiveButton("OK", null)
+            .show();
     }
 
     private android.graphics.Bitmap loadLauncherCover() {
