@@ -174,17 +174,18 @@ public final class SetupActivity extends Activity {
     }
 
     private void showOptions() {
-        String[] options = {"VR / Graphics Settings", "Import Wild World Sky ZIP",
+        String[] options = {"VR / Graphics Settings", "Controller Binding Settings", "Import Wild World Sky ZIP",
                 "Import Textures", "Import Mod ZIP", "Load Save Archive", "Export Save Archive", "Export Diagnostics"};
         new AlertDialog.Builder(this).setTitle("Options")
             .setItems(options, (dialog, which) -> {
                 if (which == 0) showGraphicsSettings();
-                else if (which == 1) chooseSkybox();
-                else if (which == 2) chooseContent(IMPORT_TEXTURES, "Import texture files or a ZIP texture pack");
-                else if (which == 3) chooseContent(IMPORT_MOD, "Import a ZIP mod package");
-                else if (which == 4) chooseSaveArchive();
-                else if (which == 5) exportSaveArchive();
-                else if (which == 6) exportDiagnostics();
+                else if (which == 1) showControllerBindings();
+                else if (which == 2) chooseSkybox();
+                else if (which == 3) chooseContent(IMPORT_TEXTURES, "Import texture files or a ZIP texture pack");
+                else if (which == 4) chooseContent(IMPORT_MOD, "Import a ZIP mod package");
+                else if (which == 5) chooseSaveArchive();
+                else if (which == 6) exportSaveArchive();
+                else if (which == 7) exportDiagnostics();
             }).show();
     }
 
@@ -278,6 +279,120 @@ public final class SetupActivity extends Activity {
     }
 
     private File settingsFile() { return new File(getFilesDir(), "settings.ini"); }
+
+    private void showControllerBindings() {
+        File file = settingsFile();
+        String ini;
+        try {
+            if (file.isFile()) ini = new String(Files.readAllBytes(file.toPath()), "UTF-8");
+            else try (InputStream defaults = getAssets().open("quest-settings.ini")) {
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[8192]; int count;
+                while ((count = defaults.read(buffer)) != -1) bytes.write(buffer, 0, count);
+                ini = bytes.toString("UTF-8");
+            }
+        } catch (Exception error) {
+            showResult("Could not read controller settings: " + error.getMessage(), false);
+            return;
+        }
+        final String baseIni = ini;
+        final String[] digitalLabels = {"A button", "B button", "X button", "Y button",
+                "Left stick click", "Right stick click", "Left trigger click", "Right trigger click",
+                "Left grip click", "Right grip click"};
+        final String[] digitalPaths = {
+                "/user/hand/right/input/a/click", "/user/hand/right/input/b/click",
+                "/user/hand/left/input/x/click", "/user/hand/left/input/y/click",
+                "/user/hand/left/input/thumbstick/click", "/user/hand/right/input/thumbstick/click",
+                "/user/hand/left/input/trigger/click", "/user/hand/right/input/trigger/click",
+                "/user/hand/left/input/squeeze/click", "/user/hand/right/input/squeeze/click"};
+        final String[] stickLabels = {"Left thumbstick", "Right thumbstick"};
+        final String[] stickPaths = {"/user/hand/left/input/thumbstick", "/user/hand/right/input/thumbstick"};
+        final String[] analogLabels = {"Left trigger", "Right trigger", "Left grip", "Right grip"};
+        final String[] analogPaths = {"/user/hand/left/input/trigger/value", "/user/hand/right/input/trigger/value",
+                "/user/hand/left/input/squeeze/value", "/user/hand/right/input/squeeze/value"};
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(28, 8, 28, 8);
+        java.util.LinkedHashMap<String, Spinner> controls = new java.util.LinkedHashMap<>();
+        String[] digitalKeys = {"bind_a", "bind_b", "bind_x", "bind_y", "bind_z", "bind_start"};
+        String[] digitalNames = {"Confirm / use tool", "Cancel / run", "X action", "Y action", "Z action", "Start menu"};
+        for (int i = 0; i < digitalKeys.length; i++) {
+            Spinner spinner = makeSpinner(digitalLabels, findPathIndex(baseIni, digitalKeys[i], digitalPaths, digitalPaths[ i == 0 ? 0 : i == 1 ? 1 : i == 2 ? 2 : i == 3 ? 3 : i == 4 ? 5 : 4 ]));
+            controls.put(digitalKeys[i], spinner); addSetting(panel, digitalNames[i], spinner);
+        }
+        Spinner move = makeSpinner(stickLabels, findPathIndex(baseIni, "bind_move", stickPaths, stickPaths[0]));
+        Spinner camera = makeSpinner(stickLabels, findPathIndex(baseIni, "bind_camera", stickPaths, stickPaths[1]));
+        controls.put("bind_move", move); controls.put("bind_camera", camera);
+        addSetting(panel, "Move", move); addSetting(panel, "Turn camera", camera);
+        String[] analogKeys = {"bind_left_grip", "bind_right_grip", "bind_left_trigger", "bind_right_trigger"};
+        String[] analogNames = {"Left grip action", "Right grip action", "Left trigger action", "Right trigger action"};
+        for (int i = 0; i < analogKeys.length; i++) {
+            Spinner spinner = makeSpinner(analogLabels, findPathIndex(baseIni, analogKeys[i], analogPaths, analogPaths[i]));
+            controls.put(analogKeys[i], spinner); addSetting(panel, analogNames[i], spinner);
+        }
+        TextView note = new TextView(this);
+        note.setText("Choose any supported Touch-controller input for each action. Changes are saved to this headset and apply after restarting the game. Avoid assigning the same button to multiple actions.");
+        note.setTextSize(12); note.setPadding(0, 14, 0, 4);
+        panel.addView(note);
+        new AlertDialog.Builder(this).setTitle("Controller Bindings")
+            .setView(new android.widget.ScrollView(this) {{ addView(panel); }})
+            .setNegativeButton("Cancel", null)
+            .setNeutralButton("Restore Defaults", (dialog, which) -> {
+                try { saveControllerBindings(file, baseIni, null); showResult("Default controller bindings restored. Restart the game to apply them.", true); }
+                catch (Exception error) { showResult("Could not restore bindings: " + error.getMessage(), false); }
+            })
+            .setPositiveButton("Save", (dialog, which) -> {
+                try {
+                    String updated = baseIni;
+                    for (java.util.Map.Entry<String, Spinner> entry : controls.entrySet()) {
+                        String[] values;
+                        if (entry.getKey().equals("bind_move") || entry.getKey().equals("bind_camera")) values = stickPaths;
+                        else if (entry.getKey().contains("grip") || entry.getKey().contains("trigger")) values = analogPaths;
+                        else values = digitalPaths;
+                        updated = setTextSetting(updated, entry.getKey(), values[entry.getValue().getSelectedItemPosition()]);
+                    }
+                    writeSettings(file, updated);
+                    showResult("Controller bindings saved. Restart the game to apply them.", true);
+                } catch (Exception error) { showResult("Could not save controller bindings: " + error.getMessage(), false); }
+            }).show();
+    }
+
+    private int findPathIndex(String ini, String key, String[] paths, String fallback) {
+        String value = readTextSetting(ini, key, fallback);
+        for (int i = 0; i < paths.length; i++) if (paths[i].equals(value)) return i;
+        for (int i = 0; i < paths.length; i++) if (paths[i].equals(fallback)) return i;
+        return 0;
+    }
+
+    private String readTextSetting(String ini, String key, String fallback) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(?m)^\\s*" +
+                java.util.regex.Pattern.quote(key) + "\\s*=\\s*(\\S+)").matcher(ini);
+        return matcher.find() ? matcher.group(1) : fallback;
+    }
+
+    private String setTextSetting(String ini, String key, String value) {
+        String line = key + " = " + value;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?m)^\\s*" +
+                java.util.regex.Pattern.quote(key) + "\\s*=\\s*\\S+\\s*$");
+        if (pattern.matcher(ini).find()) return pattern.matcher(ini).replaceFirst(java.util.regex.Matcher.quoteReplacement(line));
+        return ini + (ini.endsWith("\n") || ini.length() == 0 ? "" : "\n") + line + "\n";
+    }
+
+    private void writeSettings(File file, String updated) throws Exception {
+        File temp = new File(file.getParentFile(), "settings.ini.tmp");
+        try (FileOutputStream output = new FileOutputStream(temp)) {
+            output.write(updated.getBytes("UTF-8")); output.getFD().sync();
+        }
+        Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    }
+
+    private void saveControllerBindings(File file, String ini, String ignored) throws Exception {
+        String updated = ini;
+        String[] keys = {"bind_a","bind_b","bind_x","bind_y","bind_z","bind_start","bind_move","bind_camera",
+                "bind_left_grip","bind_right_grip","bind_left_trigger","bind_right_trigger"};
+        for (String key : keys) updated = updated.replaceAll("(?m)^\\s*" + java.util.regex.Pattern.quote(key) + "\\s*=.*\\n?", "");
+        writeSettings(file, updated);
+    }
 
     private void showGraphicsSettings() {
         File file = settingsFile();
