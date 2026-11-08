@@ -1038,15 +1038,54 @@ extern "C" float pc_vr_head_yaw_offset_bang(void) {
          * (65536.0f / (float)(2.0 * PC_PI));
 }
 
-/* Desktop backend has no in-game tracked avatar; keep the shared C API link-safe. */
+/* Feed the actual grip poses into the villager skeleton. These targets
+ * are game-world coordinates, not the separately rendered controller markers. */
 extern "C" int pc_vr_player_head_angles(short* pitch, short* yaw) {
     (void)pitch; (void)yaw; return 0;
 }
 extern "C" int pc_vr_player_hand_target(int hand, float out[3]) {
-    (void)hand; (void)out; return 0;
+    if (!out || hand < 0 || hand > 1 || !s_vr.active ||
+        !s_vr.empty_hand_valid[hand] || !pc_vr_tool_input_allowed() ||
+        !s_vr.have_anchor || !isfinite(s_vr.world_scale) || s_vr.world_scale <= 0.0001f)
+        return 0;
+
+    M34 world_from_grip;
+    m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world_from_grip);
+    for (int row = 0; row < 3; ++row) {
+        if (!isfinite(world_from_grip[row][3])) return 0;
+    }
+    out[0] = world_from_grip[0][3];
+    out[1] = world_from_grip[1][3];
+    out[2] = world_from_grip[2][3];
+    return 1;
 }
 extern "C" int pc_vr_player_hand_angles(int hand, short player_yaw, short* pitch, short* yaw, short* roll) {
-    (void)hand; (void)player_yaw; (void)pitch; (void)yaw; (void)roll; return 0;
+    if (hand < 0 || hand > 1 || !pitch || !yaw || !roll || !s_vr.active ||
+        !s_vr.empty_hand_valid[hand] || !pc_vr_tool_input_allowed() || !s_vr.have_anchor)
+        return 0;
+
+    M34 world_from_grip;
+    m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world_from_grip);
+    /* Grip forward is local +Z. Convert its world direction into the
+     * villager's facing frame; use the grip's up axis for wrist roll. */
+    float fx = world_from_grip[0][2];
+    float fy = world_from_grip[1][2];
+    float fz = world_from_grip[2][2];
+    float length = sqrtf(fx*fx + fy*fy + fz*fz);
+    if (!isfinite(length) || length < 0.00001f) return 0;
+    fx /= length; fy /= length; fz /= length;
+
+    const float to_rad = (float)(2.0 * PC_PI / 65536.0);
+    const float player_angle = (float)(unsigned short)player_yaw * to_rad;
+    const float world_yaw = atan2f(fx, fz);
+    const float local_yaw = world_yaw - player_angle;
+    const float local_pitch = atan2f(-fy, sqrtf(fx*fx + fz*fz));
+    const float local_roll = atan2f(-world_from_grip[1][0], world_from_grip[1][1]);
+    const float to_bang = 65536.0f / (float)(2.0 * PC_PI);
+    *pitch = (short)(local_pitch * to_bang);
+    *yaw = (short)(local_yaw * to_bang);
+    *roll = (short)(local_roll * to_bang);
+    return 1;
 }
 
 /* Flat-scene: frame-stamped like the FP active flag so scene teardown can
