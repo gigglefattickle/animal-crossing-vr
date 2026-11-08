@@ -113,6 +113,24 @@ static struct {
 
 /* C-facing inventory pointer query used by the game overlay. Keep this
  * implementation in the Quest backend (not the desktop OpenVR backend). */
+extern "C" void quest_vr_diag(const char* event) {
+    if (!event || !s_vm || !s_activity) return;
+    JNIEnv* env = nullptr;
+    bool detach = false;
+    jint status = s_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+    if (status == JNI_EDETACHED && s_vm->AttachCurrentThread(&env, nullptr) == JNI_OK) detach = true;
+    if (env && (status == JNI_OK || detach)) {
+        jclass cls = env->GetObjectClass(s_activity);
+        jmethodID method = cls ? env->GetMethodID(cls, "recordNativeCheckpoint", "(Ljava/lang/String;)V") : nullptr;
+        jstring value = method ? env->NewStringUTF(event) : nullptr;
+        if (value) env->CallVoidMethod(s_activity, method, value);
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (value) env->DeleteLocalRef(value);
+        if (cls) env->DeleteLocalRef(cls);
+    }
+    if (detach) s_vm->DetachCurrentThread();
+}
+
 extern "C" int pc_vr_inventory_pointer(float* u, float* v,
                                         int* trigger_down, int* trigger_pressed) {
     if (u) *u = s_vr.inventory_pointer_u;
