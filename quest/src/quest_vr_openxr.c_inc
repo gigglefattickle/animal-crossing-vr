@@ -67,6 +67,7 @@ static bool pcvr_create_action_space(XrAction action, XrSpace* space) {
 }
 
 static bool pcvr_input_init(void) {
+    quest_vr_diag("input.init_entered");
     XrActionSetCreateInfo set = {XR_TYPE_ACTION_SET_CREATE_INFO};
     strcpy(set.actionSetName, "gameplay");
     strcpy(set.localizedActionSetName, "Animal Crossing");
@@ -90,8 +91,12 @@ static bool pcvr_input_init(void) {
         {&s_vr.act_haptic_l, XR_ACTION_TYPE_VIBRATION_OUTPUT, "left_haptic", "Left haptic"},
         {&s_vr.act_haptic_r, XR_ACTION_TYPE_VIBRATION_OUTPUT, "right_haptic", "Right haptic"}
     };
-    for (auto& action : actions)
-        if (!pcvr_create_action(action.handle, action.type, action.name, action.label)) return false;
+    for (auto& action : actions) {
+        if (!pcvr_create_action(action.handle, action.type, action.name, action.label)) {
+            quest_vr_diag("input.create_action_failed"); return false;
+        }
+    }
+    quest_vr_diag("input.actions_created");
     struct Binding { XrAction action; const char* setting; const char* path; } paths[] = {
         {s_vr.act_move, "bind_move", "/user/hand/left/input/thumbstick"},
         {s_vr.act_camera, "bind_camera", "/user/hand/right/input/thumbstick"},
@@ -142,12 +147,15 @@ static bool pcvr_input_init(void) {
         if (!s_xr.check(xrStringToPath(s_xr.instance, selected.c_str(), &path), "controller binding path")) return false;
         bindings.push_back({binding.action, path});
     }
+    quest_vr_diag("input.binding_paths_created");
     XrInteractionProfileSuggestedBinding suggested = {XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
     if (!s_xr.check(xrStringToPath(s_xr.instance, "/interaction_profiles/oculus/touch_controller",
                                   &suggested.interactionProfile), "Touch profile")) return false;
     suggested.countSuggestedBindings = bindings.size();
     suggested.suggestedBindings = bindings.data();
+quest_vr_diag("input.before_suggest_bindings");
     if (!s_xr.check(xrSuggestInteractionProfileBindings(s_xr.instance, &suggested), "suggest Touch bindings")) return false;
+    quest_vr_diag("input.bindings_suggested");
     if (!pcvr_create_action_space(s_vr.act_hand_r, &s_vr.aim_space) ||
         !pcvr_create_action_space(s_vr.act_empty_hand[0], &s_vr.grip_space[0]) ||
         !pcvr_create_action_space(s_vr.act_empty_hand[1], &s_vr.grip_space[1])) return false;
@@ -155,6 +163,7 @@ static bool pcvr_input_init(void) {
     attach.countActionSets = 1; attach.actionSets = &s_vr.action_set;
     if (!s_xr.check(xrAttachSessionActionSets(s_xr.session, &attach), "attach gameplay actions")) return false;
     s_vr.input_ready = 1;
+    quest_vr_diag("input.action_spaces_created");
     return true;
 }
 
@@ -252,12 +261,35 @@ extern "C" void pc_vr_init(void) {
     }
     // Standalone builds always enter OpenXR; imported PC vr_mode=0 must not
     // silently leave the native app rendering an invisible desktop window.
-    if (!s_xr.init(s_vm, s_activity) || !pcvr_input_init() ||
-        !pcvr_create_target(&s_vr.ui, 1280, 960) ||
-        !pcvr_create_target(&s_vr.sink, 32, 32) || !pcvr_create_panel_gl() || !pcvr_create_ray_gl()) {
-        pcvr_log("Native XR initialization failed; exiting without game startup");
+    quest_vr_diag("vr.init_entered");
+    if (!s_xr.init(s_vm, s_activity)) {
+        quest_vr_diag("vr.openxr_init_failed");
+        pcvr_log("Native XR runtime initialization failed");
         pc_vr_shutdown(); g_pc_running = 0; return;
     }
+    quest_vr_diag("vr.openxr_init_complete");
+    if (!pcvr_input_init()) {
+        quest_vr_diag("vr.input_init_failed");
+        pcvr_log("Native XR input initialization failed");
+        pc_vr_shutdown(); g_pc_running = 0; return;
+    }
+    quest_vr_diag("vr.input_init_complete");
+    if (!pcvr_create_target(&s_vr.ui, 1280, 960)) {
+        quest_vr_diag("vr.ui_target_failed"); pc_vr_shutdown(); g_pc_running = 0; return;
+    }
+    quest_vr_diag("vr.ui_target_created");
+    if (!pcvr_create_target(&s_vr.sink, 32, 32)) {
+        quest_vr_diag("vr.sink_target_failed"); pc_vr_shutdown(); g_pc_running = 0; return;
+    }
+    quest_vr_diag("vr.sink_target_created");
+    if (!pcvr_create_panel_gl()) {
+        quest_vr_diag("vr.panel_gl_failed"); pc_vr_shutdown(); g_pc_running = 0; return;
+    }
+    quest_vr_diag("vr.panel_gl_created");
+    if (!pcvr_create_ray_gl()) {
+        quest_vr_diag("vr.ray_gl_failed"); pc_vr_shutdown(); g_pc_running = 0; return;
+    }
+    quest_vr_diag("vr.ray_gl_created");
     for (int eye = 0; eye < 2; ++eye) s_vr.eye[eye] = s_vr.sink;
     m34_identity(s_vr.tool_local);
     // OpenXR aim is -Z forward; game tools are authored along +Z.
