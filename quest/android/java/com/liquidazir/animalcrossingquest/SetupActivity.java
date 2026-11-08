@@ -297,14 +297,12 @@ public final class SetupActivity extends Activity {
         }
         final String baseIni = ini;
         final String[] digitalLabels = {"A button", "B button", "X button", "Y button",
-                "Left stick click", "Right stick click", "Left trigger click", "Right trigger click",
-                "Left grip click", "Right grip click"};
+                "Left stick click", "Right stick click", "Left trigger click", "Right trigger click"};
         final String[] digitalPaths = {
                 "/user/hand/right/input/a/click", "/user/hand/right/input/b/click",
                 "/user/hand/left/input/x/click", "/user/hand/left/input/y/click",
                 "/user/hand/left/input/thumbstick/click", "/user/hand/right/input/thumbstick/click",
-                "/user/hand/left/input/trigger/click", "/user/hand/right/input/trigger/click",
-                "/user/hand/left/input/squeeze/click", "/user/hand/right/input/squeeze/click"};
+                "/user/hand/left/input/trigger/click", "/user/hand/right/input/trigger/click"};
         final String[] stickLabels = {"Left thumbstick", "Right thumbstick"};
         final String[] stickPaths = {"/user/hand/left/input/thumbstick", "/user/hand/right/input/thumbstick"};
         final String[] analogLabels = {"Left trigger", "Right trigger", "Left grip", "Right grip"};
