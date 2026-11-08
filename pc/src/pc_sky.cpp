@@ -125,48 +125,38 @@ void main() {
     float land = (1.0-smoothstep(ridge-0.002,ridge+0.002,h))*smoothstep(-0.012,0.0,h)*islands;
     sky = mix(sky,horizon*0.76,land*(1.0-wet*0.5));
 
-    // The imported DS cloud map is retained for future palette reconstruction,
-    // but its current tile decode produces smeared patches in the Quest view.
-    // Use the stable flat cloud strips for every sky mode; imported stars and
-    // the moon remain enabled above.
-
-    // Periodic longitude, bounded drift (same time for both eyes), no cube seams.
-    if (h > 0.015 && h < 0.87) {
-        float latitude = asin(h);
-        for (int row=0; row<3; ++row) {
-            float r = float(row);
-            // Cloud row bounds: no candidate can pass abs(p.y)<1.2 outside
-            // this latitude range; the extra margin protects rounding edges.
-            float low = 0.055+r*0.22;
-            float high = low+0.045+r*0.11;
-            float extent = 1.2*(0.025+r*0.065)+0.00001;
-            if (latitude<low-extent || latitude>high+extent) continue;
-            float count = 18.0-r*5.0;
-            // One full revolution per game day joins continuously at midnight.
-            float x = (azimuth+environment.x/86400.0)*count + r*2.71;
-            float cell = floor(x);
-            for (int neighbor=-1; neighbor<=1; ++neighbor) {
-                float id = mod(cell+float(neighbor),count);
-                float seed = hash(id+r*39.0);
-                float center = 0.5+(seed-0.5)*0.32;
-                float elevation = 0.055+r*0.22+hash(id+93.0+r*17.0)*(0.045+r*0.11);
-                vec2 p = vec2((x-cell-float(neighbor)-center)/(0.22+seed*0.14),
-                              (latitude-elevation)/(0.025+r*0.065));
-                if (abs(p.x)<1.4 && abs(p.y)<1.2 && (row==0 || seed>0.15)) {
-                    float cover = cloud(p,seed)*mix(0.78,0.96,r/2.0);
-                    vec3 shade = mix(vec3(0.12,0.14,0.25),vec3(0.63,0.75,0.91),day);
-                    vec3 lit = mix(vec3(0.26,0.27,0.39),vec3(0.99,0.99,0.97),day);
-                    lit = mix(lit,vec3(1.00,0.70,0.59),dusk*0.72);
-                    lit = mix(lit,vec3(0.58,0.56,0.73),(1.0-day)*0.25);
-                    vec3 puff = mix(shade,lit,smoothstep(-0.16,0.42,p.y));
-                    puff = mix(puff,horizon*0.94,wet*0.85);
-                    sky = mix(sky,puff,cover);
-                }
+    // Wild World clouds are a flat 2D layer above the player, not ribbons
+    // wrapped around a 3D dome. Sample the decoded DS cloud map as one
+    // scrolling overhead sheet in sky-space; both eyes share the same UVs.
+    if (h > 0.025 && h < 0.92) {
+        vec2 cloudUV = vec2(fract(azimuth + environment.x/86400.0*0.10),
+                            clamp((h-0.025)/0.895,0.0,1.0));
+        if (acww_assets != 0) {
+            vec4 cloudLayer = texture(acww_cloud_layer,cloudUV);
+            vec3 cloudTint = mix(vec3(0.52,0.62,0.78),vec3(1.0),day);
+            cloudTint = mix(cloudTint,vec3(1.0,0.72,0.63),dusk*0.55);
+            cloudTint = mix(cloudTint,vec3(0.62,0.65,0.73),wet*0.55);
+            sky = mix(sky,cloudTint,cloudLayer.a*0.92);
+        } else {
+            // Fallback: simple 2D cloud sprites, never 3D puffs or curved bands.
+            for (int i=0;i<12;i++) {
+                float id=float(i);
+                float seed=hash(id*17.3+4.1);
+                float centerX=fract(id*0.6180339+seed*0.17
+                                    +environment.x/86400.0*0.10);
+                float centerY=0.18+hash(id*31.7+9.0)*0.62;
+                vec2 p=vec2((cloudUV.x-centerX+0.5)-floor(cloudUV.x-centerX+0.5),
+                            cloudUV.y-centerY);
+                p.x-=0.5;
+                p.x/=0.075+seed*0.045;
+                p.y/=0.018+seed*0.012;
+                float sprite=1.0-smoothstep(0.82,1.0,length(p));
+                vec3 cloudTint=mix(vec3(0.58,0.68,0.82),vec3(1.0),day);
+                cloudTint=mix(cloudTint,vec3(1.0,0.72,0.63),dusk*0.55);
+                sky=mix(sky,cloudTint,sprite*0.88);
             }
         }
     }
-    /* Clouds use the flat procedural layer until the imported NDS cloud
-     * tile attributes and palette timing are fully reconstructed. */
     color = vec4(sky,1.0);
 }
 )GLSL";
