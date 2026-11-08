@@ -8104,26 +8104,55 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
             int i;
             float best_x = 1.0e9f, best_y = 1.0e9f;
 
-            for (i = 0; i < 5; i++) {
-                float d = fabsf(panel_x - (float)mTG_item_col_pos[i]);
-                if (d < best_x) { best_x = d; col = i; }
-            }
-            for (i = 0; i < 3; i++) {
-                float d = fabsf(panel_y - (float)mTG_item_line_pos[i]);
-                if (d < best_y) { best_y = d; row = i; }
-            }
-
-            grid_hit = best_x < 12.5f && best_y < 12.5f;
-            if (grid_hit) {
-                int changed = pointer_tag->table != mTG_TABLE_ITEM ||
-                              pointer_tag->tag_col != col || pointer_tag->tag_row != row;
-                if (changed) {
-                    pointer_tag->table = mTG_TABLE_ITEM;
-                    pointer_tag->tag_col = col;
-                    pointer_tag->tag_row = row;
-                    mTG_init_tag_data_item_win(submenu);
-                    pointer_tag = &tag_ovl->tags[0];
+            if (inv_ovl->page_order[0] != mIV_PAGE_INVENTORY) {
+                /* Fish and insect collection pages use the game's native 8x5
+                 * table. Resolve the pointer against those exact slot centers
+                 * and let the normal tag initializer populate the entry name. */
+                for (i = 0; i < 8; i++) {
+                    float d = fabsf(panel_x - (float)mTG_collect_col_pos[i]);
+                    if (d < best_x) { best_x = d; col = i; }
                 }
+                for (i = 0; i < 5; i++) {
+                    float d = fabsf(panel_y - (float)mTG_collect_line_pos[i]);
+                    if (d < best_y) { best_y = d; row = i; }
+                }
+
+                grid_hit = best_x < 12.5f && best_y < 12.5f;
+                if (grid_hit) {
+                    int changed = pointer_tag->table != mTG_TABLE_COLLECT ||
+                                  pointer_tag->tag_col != col || pointer_tag->tag_row != row;
+                    if (changed) {
+                        pointer_tag->table = mTG_TABLE_COLLECT;
+                        pointer_tag->tag_col = col;
+                        pointer_tag->tag_row = row;
+                        mTG_init_tag_data_item_win(submenu);
+                    }
+                }
+            } else {
+                /* Keep the existing 5x3 pocket mapping and drag behavior
+                 * unchanged on the regular inventory page. */
+                for (i = 0; i < 5; i++) {
+                    float d = fabsf(panel_x - (float)mTG_item_col_pos[i]);
+                    if (d < best_x) { best_x = d; col = i; }
+                }
+                for (i = 0; i < 3; i++) {
+                    float d = fabsf(panel_y - (float)mTG_item_line_pos[i]);
+                    if (d < best_y) { best_y = d; row = i; }
+                }
+
+                grid_hit = best_x < 12.5f && best_y < 12.5f;
+                if (grid_hit) {
+                    int changed = pointer_tag->table != mTG_TABLE_ITEM ||
+                                  pointer_tag->tag_col != col || pointer_tag->tag_row != row;
+                    if (changed) {
+                        pointer_tag->table = mTG_TABLE_ITEM;
+                        pointer_tag->tag_col = col;
+                        pointer_tag->tag_row = row;
+                        mTG_init_tag_data_item_win(submenu);
+                        pointer_tag = &tag_ovl->tags[0];
+                    }
+                }
+            }
 
                 /* A short trigger tap selects/interacts. A hold becomes a drag
                  * only after the pocket is hovered long enough to distinguish
