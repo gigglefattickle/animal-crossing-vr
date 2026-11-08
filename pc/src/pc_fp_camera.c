@@ -22,6 +22,17 @@ extern int g_pc_substick_y;
 
 int g_pc_fp_mode = 0;
 
+/* Updated by the villager's head-joint callback after each skeleton walk.
+ * The configured value is only the startup fallback before the first draw. */
+static float s_player_head_height = 52.0f;
+
+void pc_fp_set_player_head_height(float height_game_units) {
+    if (!isfinite(height_game_units)) return;
+    if (height_game_units < 20.0f) height_game_units = 20.0f;
+    if (height_game_units > 100.0f) height_game_units = 100.0f;
+    s_player_head_height = height_game_units;
+}
+
 /* Written by Player_actor_Item_draw each frame: the player's current item
  * main index (mPlayer_ITEM_MAIN_*), -1 when nothing is out. */
 int g_pc_item_main_index_now = -1;
@@ -96,6 +107,7 @@ void pc_full_world_enable(void) {
 
 void pc_fp_init(void) {
     g_pc_fp_mode = g_pc_settings.fp_mode != 0;
+    s_player_head_height = (float)g_pc_settings.fp_eye_height;
     s_yaw = 0.0f;
     s_pitch = 0.0f;
     s_active_stamp = (u32)-1000;
@@ -206,7 +218,7 @@ void pc_fp_frame(float dt) {
 }
 
 void pc_fp_face_point(const float player_pos[3], float target_x, float target_y, float target_z) {
-    float eye_y = player_pos[1] + (float)g_pc_settings.fp_eye_height;
+    float eye_y = player_pos[1] + s_player_head_height;
     float dx = target_x - player_pos[0];
     float dz = target_z - player_pos[2];
     float hd = sqrtf(dx * dx + dz * dz);
@@ -235,7 +247,7 @@ void pc_fp_view(const float player_pos[3], float eye[3], float at[3], float up[3
     const float fz = cosf(th) * cp;
 
     eye[0] = player_pos[0];
-    eye[1] = player_pos[1] + (float)g_pc_settings.fp_eye_height;
+    eye[1] = player_pos[1] + s_player_head_height;
     eye[2] = player_pos[2];
 
     at[0] = eye[0] + fx * 100.0f;
