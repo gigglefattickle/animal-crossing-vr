@@ -1,6 +1,7 @@
 package com.liquidazir.animalcrossingquest;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -10,6 +11,8 @@ import android.provider.OpenableColumns;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.util.Log;
@@ -36,6 +39,8 @@ import java.util.Locale;
 public final class SetupActivity extends Activity {
     private static final int PICK_GAME = 4107;
     private static final int EXPORT_DIAGNOSTICS = 4108;
+    private static final int IMPORT_TEXTURES = 4109;
+    private static final int IMPORT_MOD = 4110;
     private static final String TAG = "ACQuestSetup";
     private TextView status;
     private Button playButton;
@@ -98,6 +103,21 @@ public final class SetupActivity extends Activity {
         playButton.setText("Play");
         playButton.setOnClickListener(v -> launchGame());
         root.addView(playButton, buttonParams);
+
+        Button textureButton = new Button(this);
+        textureButton.setText("Import Textures");
+        textureButton.setOnClickListener(v -> chooseContent(IMPORT_TEXTURES, "Import texture files or a ZIP texture pack"));
+        root.addView(textureButton, buttonParams);
+
+        Button modButton = new Button(this);
+        modButton.setText("Import Mod ZIP");
+        modButton.setOnClickListener(v -> chooseContent(IMPORT_MOD, "Import a ZIP mod package"));
+        root.addView(modButton, buttonParams);
+
+        Button graphicsButton = new Button(this);
+        graphicsButton.setText("Graphics Settings");
+        graphicsButton.setOnClickListener(v -> showGraphicsSettings());
+        root.addView(graphicsButton, buttonParams);
 
         Button diagnosticsButton = new Button(this);
         diagnosticsButton.setText("Export Diagnostics");
@@ -172,6 +192,100 @@ public final class SetupActivity extends Activity {
         }
     }
 
+    private void chooseContent(int requestCode, String title) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_TITLE, title);
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/zip", "application/x-zip-compressed", "application/octet-stream",
+                "image/vnd-ms.dds"
+        });
+        startActivityForResult(intent, requestCode);
+    }
+
+    private File settingsFile() { return new File(getFilesDir(), "settings.ini"); }
+
+    private void showGraphicsSettings() {
+        File file = settingsFile();
+        String ini = "";
+        try {
+            if (file.isFile()) ini = new String(Files.readAllBytes(file.toPath()), "UTF-8");
+        } catch (Exception error) {
+            status.setText("Could not read graphics settings: " + error.getMessage());
+            return;
+        }
+        String[] aaOptions = {"Off (fastest)", "2x", "4x"};
+        String[] preloadOptions = {"On demand (recommended)", "Preload at startup", "Preload + cache"};
+        String[] drawOptions = {"Whole town", "1 acre", "2 acres", "3 acres", "4 acres", "5 acres"};
+        Spinner aa = makeSpinner(aaOptions, readSetting(ini, "msaa", 0) == 2 ? 1 : readSetting(ini, "msaa", 0) == 4 ? 2 : 0);
+        Spinner preload = makeSpinner(preloadOptions, Math.max(0, Math.min(2, readSetting(ini, "preload_textures", 0))));
+        Spinner draw = makeSpinner(drawOptions, Math.max(0, Math.min(5, readSetting(ini, "vr_draw_radius", 0))));
+        android.widget.CheckBox filtering = new android.widget.CheckBox(this);
+        filtering.setText("Use game texture filtering");
+        filtering.setChecked(readSetting(ini, "texture_filtering", 1) != 0);
+        android.widget.CheckBox skybox = new android.widget.CheckBox(this);
+        skybox.setText("Enhanced sky and clouds");
+        skybox.setChecked(readSetting(ini, "skybox", 1) != 0);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(32, 12, 32, 8);
+        addSetting(panel, "Anti-aliasing", aa);
+        addSetting(panel, "HD texture loading", preload);
+        addSetting(panel, "VR terrain draw distance", draw);
+        panel.addView(filtering);
+        panel.addView(skybox);
+        new AlertDialog.Builder(this).setTitle("Graphics Settings")
+            .setView(panel)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save", (dialog, which) -> {
+                String updated = setSetting(ini, "msaa", new int[]{0,2,4}[aa.getSelectedItemPosition()]);
+                updated = setSetting(updated, "preload_textures", preload.getSelectedItemPosition());
+                updated = setSetting(updated, "vr_draw_radius", draw.getSelectedItemPosition());
+                updated = setSetting(updated, "texture_filtering", filtering.isChecked() ? 1 : 0);
+                updated = setSetting(updated, "skybox", skybox.isChecked() ? 1 : 0);
+                try {
+                    File temp = new File(file.getParentFile(), "settings.ini.tmp");
+                    try (FileOutputStream output = new FileOutputStream(temp)) {
+                        output.write(updated.getBytes("UTF-8"));
+                        output.getFD().sync();
+                    }
+                    if (!temp.renameTo(file)) throw new java.io.IOException("Could not save settings file.");
+                    status.setText("Graphics settings saved. Restart the game to apply them.");
+                } catch (Exception error) {
+                    status.setText("Could not save graphics settings: " + error.getMessage());
+                }
+            }).show();
+    }
+
+    private Spinner makeSpinner(String[] values, int selected) {
+        Spinner spinner = new Spinner(this);
+        spinner.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, values));
+        spinner.setSelection(selected);
+        return spinner;
+    }
+
+    private void addSetting(LinearLayout panel, String label, View control) {
+        TextView title = new TextView(this);
+        title.setText(label);
+        title.setTextSize(16);
+        title.setPadding(0, 12, 0, 2);
+        panel.addView(title);
+        panel.addView(control);
+    }
+
+    private int readSetting(String ini, String key, int fallback) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(?m)^\\s*" + java.util.regex.Pattern.quote(key) + "\\s*=\\s*(-?\\d+)").matcher(ini);
+        return matcher.find() ? Integer.parseInt(matcher.group(1)) : fallback;
+    }
+
+    private String setSetting(String ini, String key, int value) {
+        String line = key + " = " + value;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?m)^\\s*" + java.util.regex.Pattern.quote(key) + "\\s*=\\s*-?\\d+\\s*$");
+        if (pattern.matcher(ini).find()) return pattern.matcher(ini).replaceFirst(java.util.regex.Matcher.quoteReplacement(line));
+        return ini + (ini.endsWith("\n") || ini.length() == 0 ? "" : "\n") + line + "\n";
+    }
+
     private void chooseGame() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -184,6 +298,19 @@ public final class SetupActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == IMPORT_TEXTURES || requestCode == IMPORT_MOD) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                try {
+                    String name = ContentImporter.importContent(this, data.getData(), requestCode == IMPORT_MOD);
+                    status.setText("Imported: " + name + "\nRestart the game to load the new content.");
+                } catch (Exception error) {
+                    Log.e(TAG, "Content import failed", error);
+                    status.setText("Import failed: " + error.getMessage());
+                }
+            }
+            refreshState();
+            return;
+        }
         if (requestCode == EXPORT_DIAGNOSTICS) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 writeDiagnostics(data.getData());
