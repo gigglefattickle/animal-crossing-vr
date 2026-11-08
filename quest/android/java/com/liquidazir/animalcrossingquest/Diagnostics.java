@@ -2,6 +2,10 @@ package com.liquidazir.animalcrossingquest;
 
 import android.content.Context;
 import android.os.Process;
+import android.os.Build;
+import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.util.List;
 import android.util.Log;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -53,6 +57,61 @@ public final class Diagnostics {
             if (previous != null) previous.uncaughtException(thread, error);
             else Process.killProcess(Process.myPid());
         });
+    }
+
+
+    /**
+     * Reads Android's historical exit records for this app. On Android 11+
+     * this can recover native-crash reason/description and the system-provided
+     * tombstone trace after the game process has already died.
+     */
+    public static String readPreviousCrash(Context context) {
+        StringBuilder result = new StringBuilder();
+        if (Build.VERSION.SDK_INT < 30) {
+            return "Historical process-exit reports require Android 11 or newer.\\n";
+        }
+        try {
+            Object manager = context.getSystemService(Context.ACTIVITY_SERVICE);
+            Method history = manager.getClass().getMethod(
+                    "getHistoricalProcessExitReasons", String.class, int.class, int.class);
+            Object value = history.invoke(manager, context.getPackageName(), 0, 5);
+            if (!(value instanceof List) || ((List<?>) value).isEmpty()) {
+                return "No previous process-exit records are available.\\n";
+            }
+            for (Object exit : (List<?>) value) {
+                Class<?> type = exit.getClass();
+                result.append("Exit timestamp: ").append(type.getMethod("getTimestamp").invoke(exit)).append('\\n');
+                result.append("PID: ").append(type.getMethod("getPid").invoke(exit)).append('\\n');
+                result.append("Reason code: ").append(type.getMethod("getReason").invoke(exit)).append('\\n');
+                result.append("Status: ").append(type.getMethod("getStatus").invoke(exit)).append('\\n');
+                result.append("Description: ").append(type.getMethod("getDescription").invoke(exit)).append('\\n');
+                try {
+                    InputStream trace = (InputStream) type.getMethod("getTraceInputStream").invoke(exit);
+                    if (trace != null) {
+                        result.append("--- System crash trace ---\\n");
+                        byte[] buffer = new byte[8192];
+                        int total = 0;
+                        try (InputStream input = trace) {
+                            int count;
+                            while (total < 128 * 1024 &&
+                                    (count = input.read(buffer, 0, Math.min(buffer.length, 128 * 1024 - total))) > 0) {
+                                result.append(new String(buffer, 0, count, "UTF-8"));
+                                total += count;
+                            }
+                        }
+                        result.append("\\n--- End crash trace ---\\n");
+                    }
+                } catch (Exception unavailable) {
+                    result.append("Crash trace unavailable: ").append(unavailable.getClass().getSimpleName()).append('\\n');
+                }
+                result.append('\\n');
+            }
+        } catch (Exception error) {
+            result.append("Could not read Android process-exit history: ")
+                    .append(error.getClass().getSimpleName()).append(": ")
+                    .append(error.getMessage()).append('\\n');
+        }
+        return result.toString();
     }
 
     public static String readEvents(Context context) {
