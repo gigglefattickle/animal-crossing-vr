@@ -40,12 +40,12 @@ final class SkyboxImporter {
             while ((entry = zip.getNextEntry()) != null) {
                 if (++entries > MAX_ENTRIES) throw new IllegalArgumentException("Sky ZIP contains too many entries.");
                 if (entry.isDirectory()) { zip.closeEntry(); continue; }
-                String name = entry.getName().replace('\\\\', '/');
+                String name = entry.getName().replace('\\', '/');
                 if (name.equals("IMPORT-INFO.txt")) { zip.closeEntry(); continue; }
                 if (!name.startsWith("sky/") || name.length() <= 4 ||
                     name.indexOf("..") >= 0 || name.startsWith("/") || name.indexOf(':') >= 0 ||
                     name.substring(4).indexOf('/') >= 0 ||
-                    !name.matches("sky/[A-Za-z0-9_.-]+\\\\.bin")) {
+                    !name.matches("sky/[A-Za-z0-9_.-]+\\.bin")) {
                     throw new IllegalArgumentException("ZIP must contain only files from the Wild World sky/ folder.");
                 }
                 if (!seen.add(name)) throw new IllegalArgumentException("Sky ZIP contains duplicate files.");
