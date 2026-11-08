@@ -90,8 +90,11 @@ static struct {
     XrSpace aim_space, grip_space[2];
     int input_ready, input_synced, recenter_latch;
     PCVRMenuInput menu_input;
-    M34 world_from_seated, hand_world, tool_local;
+    M34 world_from_seated, hand_world, tool_local, aim_pose;
     int hand_valid;
+    /* Right-controller ray mapped into the floating 4:3 game panel. */
+    float inventory_pointer_u, inventory_pointer_v;
+    int inventory_pointer_valid, inventory_trigger_down, inventory_trigger_pressed;
     PCVRSwing swing;
     Uint32 active_since_ticks;
     u32 flat_scene_stamp;
