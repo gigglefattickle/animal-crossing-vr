@@ -211,10 +211,18 @@ public final class SetupActivity extends Activity {
         String ini = "";
         try {
             if (file.isFile()) ini = new String(Files.readAllBytes(file.toPath()), "UTF-8");
+            else try (InputStream defaults = getAssets().open("quest-settings.ini")) {
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = defaults.read(buffer)) != -1) bytes.write(buffer, 0, count);
+                ini = bytes.toString("UTF-8");
+            }
         } catch (Exception error) {
             status.setText("Could not read graphics settings: " + error.getMessage());
             return;
         }
+        final String baseIni = ini;
         String[] aaOptions = {"Off (fastest)", "2x", "4x"};
         String[] preloadOptions = {"On demand (recommended)", "Preload at startup", "Preload + cache"};
         String[] drawOptions = {"Whole town", "1 acre", "2 acres", "3 acres", "4 acres", "5 acres"};
@@ -239,7 +247,7 @@ public final class SetupActivity extends Activity {
             .setView(panel)
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Save", (dialog, which) -> {
-                String updated = setSetting(ini, "msaa", new int[]{0,2,4}[aa.getSelectedItemPosition()]);
+                String updated = setSetting(baseIni, "msaa", new int[]{0,2,4}[aa.getSelectedItemPosition()]);
                 updated = setSetting(updated, "preload_textures", preload.getSelectedItemPosition());
                 updated = setSetting(updated, "vr_draw_radius", draw.getSelectedItemPosition());
                 updated = setSetting(updated, "texture_filtering", filtering.isChecked() ? 1 : 0);
@@ -250,7 +258,7 @@ public final class SetupActivity extends Activity {
                         output.write(updated.getBytes("UTF-8"));
                         output.getFD().sync();
                     }
-                    if (!temp.renameTo(file)) throw new java.io.IOException("Could not save settings file.");
+                    Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                     status.setText("Graphics settings saved. Restart the game to apply them.");
                 } catch (Exception error) {
                     status.setText("Could not save graphics settings: " + error.getMessage());
@@ -308,7 +316,6 @@ public final class SetupActivity extends Activity {
                     status.setText("Import failed: " + error.getMessage());
                 }
             }
-            refreshState();
             return;
         }
         if (requestCode == EXPORT_DIAGNOSTICS) {
