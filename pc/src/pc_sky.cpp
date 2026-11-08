@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstring>
 #include <stdint.h>
+#include <stdlib.h>
 
 extern "C" { extern uint32_t pc_frame_counter; extern int g_pc_paused; }
 
@@ -295,6 +296,8 @@ static unsigned char* decode_cloud_map(const unsigned char* ncg,const unsigned c
 }
 
 static GLuint upload_rgba_texture(int width,int height,const unsigned char* pixels) {
+    GLint previous_binding=0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_binding);
     GLuint texture=0;
     glGenTextures(1,&texture);
     if (!texture) return 0;
@@ -304,11 +307,11 @@ static GLuint upload_rgba_texture(int width,int height,const unsigned char* pixe
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    glBindTexture(GL_TEXTURE_2D,(GLuint)previous_binding);
     return texture;
 }
 
 static int load_wild_world_assets(void) {
-    size_t n=0;
     unsigned char* sky_ncg=read_asset("acww_sky/sky/d_2d_sky00_ncg.bin",16384,NULL);
     unsigned char* sky_ncl=read_asset("acww_sky/sky/d_2d_sky00_ncl.bin",32,NULL);
     unsigned char* sky_nsc=read_asset("acww_sky/sky/d_2d_sky00_nsc.bin",1024,NULL);
@@ -351,7 +354,6 @@ static int load_wild_world_assets(void) {
     } else {
         fprintf(stdout,"[Sky] Imported Wild World sky layers loaded\n");
     }
-    (void)n;
     return acww_assets_ready;
 }
 
@@ -366,8 +368,11 @@ static void update_wild_world_clouds(float game_seconds,float cloudiness) {
     const unsigned char* palette=variant==2 ? acww_cloud_r0_palette : acww_cloud_f0_palette;
     unsigned char* pixels=decode_cloud_map(acww_cloud_ncg,palette,map,bank);
     if (!pixels) return;
+    GLint previous_binding=0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_binding);
     glBindTexture(GL_TEXTURE_2D,acww_cloud_texture);
     glTexSubImage2D(GL_TEXTURE_2D,0,0,0,512,128,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    glBindTexture(GL_TEXTURE_2D,(GLuint)previous_binding);
     free(pixels);
     acww_cloud_variant=variant;
     acww_palette_bank=bank;
