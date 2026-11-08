@@ -65,6 +65,29 @@ public final class Diagnostics {
      * this can recover native-crash reason/description and the system-provided
      * tombstone trace after the game process has already died.
      */
+    /** Returns the timestamp of the latest recorded crash exit, or zero. */
+    public static long latestCrashTimestamp(Context context) {
+        if (Build.VERSION.SDK_INT < 30) return 0L;
+        try {
+            Object manager = context.getSystemService(Context.ACTIVITY_SERVICE);
+            Method history = manager.getClass().getMethod(
+                    "getHistoricalProcessExitReasons", String.class, int.class, int.class);
+            Object value = history.invoke(manager, context.getPackageName(), 0, 5);
+            if (!(value instanceof List)) return 0L;
+            for (Object exit : (List<?>) value) {
+                Class<?> type = exit.getClass();
+                int reason = ((Number) type.getMethod("getReason").invoke(exit)).intValue();
+                // ActivityManager.ProcessExitInfo: REASON_CRASH=4, REASON_CRASH_NATIVE=5.
+                if (reason == 4 || reason == 5) {
+                    return ((Number) type.getMethod("getTimestamp").invoke(exit)).longValue();
+                }
+            }
+        } catch (Exception error) {
+            Log.w(TAG, "Could not inspect previous crash exit", error);
+        }
+        return 0L;
+    }
+
     public static String readPreviousCrash(Context context) {
         StringBuilder result = new StringBuilder();
         if (Build.VERSION.SDK_INT < 30) {

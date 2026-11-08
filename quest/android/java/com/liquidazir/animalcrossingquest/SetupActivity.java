@@ -57,6 +57,7 @@ public final class SetupActivity extends Activity {
         Diagnostics.installCrashHandler(this);
         Diagnostics.record(this, "launcher.onCreate");
         render();
+        promptRecoveryAfterCrash();
     }
 
     @Override protected void onResume() {
@@ -240,6 +241,31 @@ public final class SetupActivity extends Activity {
         shape.setCornerRadius(radius);
         if (stroke != 0) shape.setStroke(2, stroke);
         return shape;
+    }
+
+    private void promptRecoveryAfterCrash() {
+        long crashTime = Diagnostics.latestCrashTimestamp(this);
+        if (crashTime == 0L) return;
+        android.content.SharedPreferences prefs = getSharedPreferences("recovery", MODE_PRIVATE);
+        if (prefs.getLong("last_prompted_crash", 0L) >= crashTime) return;
+        File[] snapshots = SaveRecovery.listSnapshots(this);
+        if (snapshots.length == 0) return;
+        prefs.edit().putLong("last_prompted_crash", crashTime).apply();
+        Diagnostics.record(this, "save.crash_recovery_available crash_timestamp=" + crashTime);
+        new AlertDialog.Builder(this).setTitle("The game closed unexpectedly")
+            .setMessage("A recovery snapshot is available from before your last game session. Would you like to restore it? This replaces the current memory-card files after making a safety backup.")
+            .setNegativeButton("Not now", (dialog, which) ->
+                    Diagnostics.record(this, "save.crash_recovery_declined"))
+            .setPositiveButton("Restore Snapshot", (dialog, which) -> {
+                try {
+                    SaveRecovery.restoreSnapshot(this, snapshots[0]);
+                    Diagnostics.record(this, "save.crash_recovery_restored snapshot=" + snapshots[0].getName());
+                    showResult("Recovery snapshot restored. Press Play to load it.", true);
+                } catch (Exception error) {
+                    Diagnostics.record(this, "save.crash_recovery_restore_failed " + Log.getStackTraceString(error));
+                    showResult("Crash recovery failed: " + error.getMessage(), false);
+                }
+            }).show();
     }
 
     private void showSaveManager() {
