@@ -165,6 +165,27 @@ public final class SetupActivity extends Activity {
         crashParams.topMargin = 10;
         root.addView(crashReport, crashParams);
 
+        TextView versionFooter = new TextView(this);
+        String versionName = "unknown";
+        long buildNumber = 0;
+        try {
+            android.content.pm.PackageInfo packageInfo =
+                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            if (packageInfo.versionName != null) versionName = packageInfo.versionName;
+            buildNumber = packageInfo.getLongVersionCode();
+        } catch (Exception error) {
+            Log.w(TAG, "Could not read launcher version", error);
+        }
+        versionFooter.setText("VERSION " + versionName + "  •  BUILD " + buildNumber);
+        versionFooter.setTextColor(leafGreen);
+        versionFooter.setTextSize(11);
+        versionFooter.setGravity(Gravity.CENTER);
+        versionFooter.setLetterSpacing(0.06f);
+        LinearLayout.LayoutParams versionParams =
+                new LinearLayout.LayoutParams(-1, 36);
+        versionParams.topMargin = 12;
+        root.addView(versionFooter, versionParams);
+
         setContentView(root);
         refreshState();
     }
