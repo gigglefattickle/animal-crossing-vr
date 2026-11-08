@@ -13,6 +13,10 @@
 #include "pc_vr.h"
 #include "pc_fp_camera.h"
 #include "pc_model_viewer.h"
+
+#ifndef __ANDROID__
+static void quest_vr_diag(const char* event) { (void)event; }
+#endif
 #include "m_kankyo.h"
 #ifdef __ANDROID__
 #include "quest_platform.h"
