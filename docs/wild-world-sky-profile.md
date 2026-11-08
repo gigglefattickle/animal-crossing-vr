@@ -28,3 +28,25 @@ python pc/tests/run_sky_row_tests.py
 ```
 
 A successful Android APK build confirms compilation and packaging only. The new sky still needs a Quest 3 visual check for shader compatibility, visual quality, and frame-time impact.
+
+## Importing original Wild World sky assets
+
+The Quest launcher includes **Import Wild World Sky ZIP**. Import a ZIP made
+from the `sky/` resource directory of a legally obtained Wild World ROM.
+The importer accepts only the flat `sky/*.bin` files, checks the core
+background/cloud/star resources and expected sizes, rejects unsafe ZIP paths,
+and installs the set atomically in app-private storage at `acww_sky/sky/`.
+The ROM itself and extracted game assets are not bundled in the public source
+repository or APK.
+
+When the imported set is present, the outdoor renderer uses the original
+tiled sky strip, weather cloud layers, and star map. Cloud palettes follow the
+game clock; clear, cloudy, and heavy-overcast blends select the corresponding
+cloud layouts. The procedural sky remains the fallback when no valid asset
+pack has been imported. The moon remains procedurally rendered in this first
+integration pass; the original object-sprite atlas is retained in the import
+for a later sprite-layout pass.
+
+Restart the game after importing. A successful APK build confirms the decoder
+and shader compile; the final appearance, cloud alignment, palette timing, and
+Quest frame-time still require an in-headset playtest.
