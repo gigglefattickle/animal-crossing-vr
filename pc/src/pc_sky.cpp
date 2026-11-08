@@ -17,8 +17,8 @@ static int failed, outdoors, have_environment, have_view, drawn, environment_act
 static uint32_t environment_frame;
 static float seconds, overcast, view[12];
 static GLint u_projection, u_rotation, u_environment;
-static GLint u_acww_sky, u_acww_clouds, u_acww_stars, u_acww_assets;
-static GLuint acww_sky_texture, acww_cloud_texture, acww_star_texture;
+static GLint u_acww_sky, u_acww_clouds, u_acww_stars, u_acww_moon, u_acww_assets;
+static GLuint acww_sky_texture, acww_cloud_texture, acww_star_texture, acww_moon_texture;
 static int acww_assets_checked, acww_assets_ready, acww_cloud_variant = -1, acww_palette_bank = -1;
 static unsigned char *acww_cloud_ncg, *acww_cloud_f0_map, *acww_cloud_c0_map, *acww_cloud_r0_map;
 static unsigned char *acww_cloud_f0_palette, *acww_cloud_r0_palette;
@@ -40,6 +40,7 @@ uniform vec2 environment; // game seconds, overcast blend
 uniform sampler2D acww_sky_layer;
 uniform sampler2D acww_cloud_layer;
 uniform sampler2D acww_star_layer;
+uniform sampler2D acww_moon_layer;
 uniform int acww_assets;
 const float PI = 3.14159265359;
 float hash(float n) { return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
@@ -100,9 +101,17 @@ void main() {
         }
         vec2 moonPoint = vec2(azimuth-0.72,h-0.43);
         moonPoint.x = min(moonPoint.x,1.0-moonPoint.x);
-        float moon = 1.0-smoothstep(0.035,0.043,length(moonPoint));
-        sky = mix(sky,vec3(0.96,0.94,0.82),moon*night*0.92);
-        sky += vec3(0.30,0.40,0.72)*exp(-length(moonPoint)*18.0)*0.10*night;
+        if (acww_assets != 0) {
+            if (abs(moonPoint.x)<0.04 && abs(moonPoint.y)<0.04) {
+                vec2 moonUV = vec2(moonPoint.x/0.08+0.5,0.5-moonPoint.y/0.08);
+                vec4 moonSprite = texture(acww_moon_layer,moonUV);
+                sky = mix(sky,moonSprite.rgb,moonSprite.a*night*0.96);
+            }
+        } else {
+            float moon = 1.0-smoothstep(0.035,0.043,length(moonPoint));
+            sky = mix(sky,vec3(0.96,0.94,0.82),moon*night*0.92);
+            sky += vec3(0.30,0.40,0.72)*exp(-length(moonPoint)*18.0)*0.10*night;
+        }
     }
 
     // Sparse distant island silhouettes, entirely behind the playable world.
@@ -202,6 +211,7 @@ static int init(void) {
     u_acww_sky = glGetUniformLocation(program,"acww_sky_layer");
     u_acww_clouds = glGetUniformLocation(program,"acww_cloud_layer");
     u_acww_stars = glGetUniformLocation(program,"acww_star_layer");
+    u_acww_moon = glGetUniformLocation(program,"acww_moon_layer");
     u_acww_assets = glGetUniformLocation(program,"acww_assets");
     fprintf(stdout,"[Sky] Outdoor sky renderer initialized\n");
     return 1;
@@ -274,6 +284,26 @@ static unsigned char* decode_star_map(const unsigned char* ncg,const unsigned ch
     return rgba;
 }
 
+static unsigned char* decode_moon_sprite(const unsigned char* ncg,const unsigned char* ncl) {
+    const int width=32,height=32;
+    unsigned char* rgba=(unsigned char*)calloc((size_t)width*height,4);
+    if (!rgba) return NULL;
+    /* The Wild World sky object atlas stores its 32x32 full-moon cel at
+     * tile columns 28-31, rows 20-23. Palette zero is the moon-object palette. */
+    for (int ty=0;ty<4;ty++) for (int tx=0;tx<4;tx++) {
+        int tile=(20+ty)*32+(28+tx);
+        const unsigned char* src=ncg+tile*32;
+        for (int y=0;y<8;y++) for (int x=0;x<8;x++) {
+            unsigned char packed=src[y*4+x/2];
+            int color=(x&1)?(packed>>4):(packed&15);
+            if (!color) continue;
+            unsigned char* dst=rgba+(((ty*8+y)*width)+(tx*8+x))*4;
+            nds_color_rgba(ncl,color,dst);
+        }
+    }
+    return rgba;
+}
+
 static unsigned char* decode_cloud_map(const unsigned char* ncg,const unsigned char* ncl,
                                        const unsigned char* nsc,int palette_bank) {
     const int width=512,height=128;
@@ -318,35 +348,40 @@ static int load_wild_world_assets(void) {
     unsigned char* star_ncg=read_asset("acww_sky/sky/d_2d_star_ncg.bin",512,NULL);
     unsigned char* star_ncl=read_asset("acww_sky/sky/d_2d_star_ncl.bin",32,NULL);
     unsigned char* star_nsc=read_asset("acww_sky/sky/d_2d_star_nsc.bin",2048,NULL);
+    unsigned char* moon_ncg=read_asset("acww_sky/sky/a_sky_obj_ncg.bin",32768,NULL);
+    unsigned char* moon_ncl=read_asset("acww_sky/sky/a_sky_moon_obj_ncl.bin",320,NULL);
     acww_cloud_ncg=read_asset("acww_sky/sky/d_2d_b_cld_bg_ncg.bin",2048,NULL);
     acww_cloud_f0_map=read_asset("acww_sky/sky/d_2d_b_cld_f0_bg_nsc.bin",1024,NULL);
     acww_cloud_c0_map=read_asset("acww_sky/sky/d_2d_b_cld_c0_bg_nsc.bin",1024,NULL);
     acww_cloud_r0_map=read_asset("acww_sky/sky/d_2d_b_cld_r0_bg_nsc.bin",1024,NULL);
     acww_cloud_f0_palette=read_asset("acww_sky/sky/d_2d_b_cld_f0_bg_ncl.bin",384,NULL);
     acww_cloud_r0_palette=read_asset("acww_sky/sky/d_2d_b_cld_r0_bg_ncl.bin",384,NULL);
-    int ok=sky_ncg && sky_ncl && sky_nsc && star_ncg && star_ncl && star_nsc &&
+    int ok=sky_ncg && sky_ncl && sky_nsc && star_ncg && star_ncl && star_nsc && moon_ncg && moon_ncl &&
         acww_cloud_ncg && acww_cloud_f0_map && acww_cloud_c0_map && acww_cloud_r0_map &&
         acww_cloud_f0_palette && acww_cloud_r0_palette;
     if (ok) {
         unsigned char* sky=decode_sky_strip(sky_ncg,sky_ncl,sky_nsc);
         unsigned char* stars=decode_star_map(star_ncg,star_ncl,star_nsc);
+        unsigned char* moon=decode_moon_sprite(moon_ncg,moon_ncl);
         unsigned char* clouds=decode_cloud_map(acww_cloud_ncg,acww_cloud_f0_palette,acww_cloud_f0_map,7);
-        if (sky && stars && clouds) {
+        if (sky && stars && clouds && moon) {
             acww_sky_texture=upload_rgba_texture(512,128,sky);
             acww_star_texture=upload_rgba_texture(256,256,stars);
+            acww_moon_texture=upload_rgba_texture(32,32,moon);
             acww_cloud_texture=upload_rgba_texture(512,128,clouds);
-            acww_assets_ready=acww_sky_texture && acww_star_texture && acww_cloud_texture;
+            acww_assets_ready=acww_sky_texture && acww_star_texture && acww_cloud_texture && acww_moon_texture;
             acww_cloud_variant=0; acww_palette_bank=7;
         }
-        free(sky); free(stars); free(clouds);
+        free(sky); free(stars); free(clouds); free(moon);
     }
     free(sky_ncg); free(sky_ncl); free(sky_nsc);
-    free(star_ncg); free(star_ncl); free(star_nsc);
+    free(star_ncg); free(star_ncl); free(star_nsc); free(moon_ncg); free(moon_ncl);
     if (!acww_assets_ready) {
         if (acww_sky_texture) glDeleteTextures(1,&acww_sky_texture);
         if (acww_cloud_texture) glDeleteTextures(1,&acww_cloud_texture);
         if (acww_star_texture) glDeleteTextures(1,&acww_star_texture);
-        acww_sky_texture=acww_cloud_texture=acww_star_texture=0;
+        if (acww_moon_texture) glDeleteTextures(1,&acww_moon_texture);
+        acww_sky_texture=acww_cloud_texture=acww_star_texture=acww_moon_texture=0;
         free(acww_cloud_ncg); free(acww_cloud_f0_map); free(acww_cloud_c0_map); free(acww_cloud_r0_map);
         free(acww_cloud_f0_palette); free(acww_cloud_r0_palette);
         acww_cloud_ncg=acww_cloud_f0_map=acww_cloud_c0_map=acww_cloud_r0_map=NULL;
@@ -382,7 +417,8 @@ static void free_wild_world_assets(void) {
     if (acww_sky_texture) glDeleteTextures(1,&acww_sky_texture);
     if (acww_cloud_texture) glDeleteTextures(1,&acww_cloud_texture);
     if (acww_star_texture) glDeleteTextures(1,&acww_star_texture);
-    acww_sky_texture=acww_cloud_texture=acww_star_texture=0;
+    if (acww_moon_texture) glDeleteTextures(1,&acww_moon_texture);
+    acww_sky_texture=acww_cloud_texture=acww_star_texture=acww_moon_texture=0;
     free(acww_cloud_ncg); free(acww_cloud_f0_map); free(acww_cloud_c0_map); free(acww_cloud_r0_map);
     free(acww_cloud_f0_palette); free(acww_cloud_r0_palette);
     acww_cloud_ncg=acww_cloud_f0_map=acww_cloud_c0_map=acww_cloud_r0_map=NULL;
