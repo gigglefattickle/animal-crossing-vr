@@ -735,19 +735,6 @@ static void pcvr_draw_panel(int eye) {
         glDrawArrays(GL_LINES, 0, 2);
         glBindBuffer(GL_ARRAY_BUFFER, 0); glBindVertexArray(s_vr.panel_vao); glUseProgram(s_vr.panel_prog);
     }
-    if (s_vr.inventory_pointer_valid) {
-        int px = (int)(s_vr.inventory_pointer_u * (float)s_vr.eye[eye].w);
-        int py = (int)((1.0f - s_vr.inventory_pointer_v) * (float)s_vr.eye[eye].h);
-        if (px < 4) px = 4;
-        if (py < 4) py = 4;
-        if (px > s_vr.eye[eye].w - 4) px = s_vr.eye[eye].w - 4;
-        if (py > s_vr.eye[eye].h - 4) py = s_vr.eye[eye].h - 4;
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(px - 4, py - 4, 8, 8);
-        glClearColor(0.05f, 0.9f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_SCISSOR_TEST);
-    }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
