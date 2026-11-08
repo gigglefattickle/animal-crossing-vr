@@ -545,6 +545,48 @@ int pc_vr_player_hand_target(int hand, float out[3]) {
     return 1;
 }
 
+/* Return the live controller grip orientation in the villager's local frame.
+ * This is used only by the rendered wrist joints; it never feeds gameplay,
+ * collision, or the leg animation. Normalize the grip basis before extracting
+ * Euler angles because the world transform includes the game-unit scale. */
+int pc_vr_player_hand_angles(int hand, short player_yaw, short* pitch, short* yaw, short* roll) {
+    if (hand < 0 || hand > 1 || !pitch || !yaw || !roll ||
+        !pcvr_player_tracking_allowed() || !s_vr.have_anchor || !s_vr.empty_hand_valid[hand]) return 0;
+
+    M34 world;
+    m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world);
+    float basis[3][3];
+    for (int col = 0; col < 3; ++col) {
+        float length = sqrtf(world[0][col] * world[0][col] +
+                             world[1][col] * world[1][col] +
+                             world[2][col] * world[2][col]);
+        if (!isfinite(length) || length < 1e-5f) return 0;
+        for (int row = 0; row < 3; ++row) basis[row][col] = world[row][col] / length;
+    }
+
+    const float angle = (float)(u16)player_yaw * (2.0f * (float)PC_PI / 65536.0f);
+    const float c = cosf(angle), s = sinf(angle);
+    float local[3][3];
+    for (int col = 0; col < 3; ++col) {
+        local[0][col] = c * basis[0][col] - s * basis[2][col];
+        local[1][col] = basis[1][col];
+        local[2][col] = s * basis[0][col] + c * basis[2][col];
+    }
+
+    float p = atan2f(-local[1][2], hypotf(local[0][2], local[2][2]));
+    float y = atan2f(local[0][2], local[2][2]);
+    float r = atan2f(local[1][0], local[1][1]);
+    const float limit = 1.05f;
+    p = fmaxf(-limit, fminf(limit, p));
+    y = fmaxf(-limit, fminf(limit, y));
+    r = fmaxf(-limit, fminf(limit, r));
+    const float scale = 32768.0f / (float)PC_PI;
+    *pitch = (short)lrintf(p * scale);
+    *yaw = (short)lrintf(y * scale);
+    *roll = (short)lrintf(r * scale);
+    return 1;
+}
+
 void pc_vr_set_empty_hands_available(int available) {
     s_vr.empty_hands_available = available != 0;
     s_vr.empty_hands_stamp = pc_frame_counter;
