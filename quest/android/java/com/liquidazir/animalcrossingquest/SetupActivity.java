@@ -14,7 +14,10 @@ import android.widget.Button;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.LinearLayout;
-import android.widget.TextView;\nimport android.widget.ImageView;\nimport android.graphics.BitmapFactory;\nimport android.util.Base64;
+import android.widget.TextView;
+import android.widget.ImageView;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
 import android.util.Log;
 
 import java.io.File;
@@ -41,7 +44,9 @@ public final class SetupActivity extends Activity {
     private static final int EXPORT_DIAGNOSTICS = 4108;
     private static final int IMPORT_TEXTURES = 4109;
     private static final int IMPORT_MOD = 4110;
-    private static final int IMPORT_SKYBOX = 4111;\n    private static final int IMPORT_SAVES = 4112;\n    private static final int EXPORT_SAVES = 4113;
+    private static final int IMPORT_SKYBOX = 4111;
+    private static final int IMPORT_SAVES = 4112;
+    private static final int EXPORT_SAVES = 4113;
     private static final String TAG = "ACQuestSetup";
     private TextView status;
     private Button playButton;
