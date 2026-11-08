@@ -82,7 +82,8 @@ static s16 Player_actor_vr_angle(float radians) {
 }
 
 static void Player_actor_vr_adjust_arm(PLAYER_ACTOR* player, int joint_no, s_xyz* rot) {
-    int hand = (joint_no == mPlayer_JOINT_RARM_BASE || joint_no == mPlayer_JOINT_RARM1) ? 1 : 0;
+    int hand = (joint_no == mPlayer_JOINT_RARM_BASE || joint_no == mPlayer_JOINT_RARM1 ||
+                 joint_no == mPlayer_JOINT_RARM2) ? 1 : 0;
     float target[3];
     if (!pc_vr_active() || !pc_fp_view_is_active() ||
         !pc_vr_player_hand_target(hand, target)) {
