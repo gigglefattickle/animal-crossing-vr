@@ -445,6 +445,15 @@ public final class SetupActivity extends Activity {
     }
 
     private void chooseSaveArchive() {
+        new AlertDialog.Builder(this)
+            .setTitle("Replace memory-card saves?")
+            .setMessage("Importing this archive replaces both memory-card slots. Export a backup first if you want to keep the current saves.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Continue", (dialog, which) -> openSaveArchivePicker())
+            .show();
+    }
+
+    private void openSaveArchivePicker() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/zip");
