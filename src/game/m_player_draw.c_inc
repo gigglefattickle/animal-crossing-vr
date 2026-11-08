@@ -1,4 +1,5 @@
 #ifdef TARGET_PC
+#include "pc_fp_camera.h"
 /* Adjust only the temporary render position after the find leaves the shovel.
  * The animated hand, dig target, and drop/exchange positions stay in the world. */
 static int Player_actor_vr_find_position(const PLAYER_ACTOR* player, const GAME_PLAY* play, xyz_t* out) {
@@ -192,6 +193,11 @@ static void Player_actor_draw_After_head(ACTOR* actorx, GAME* game, cKF_Skeleton
     PLAYER_ACTOR* player = (PLAYER_ACTOR*)actorx;
 
     Matrix_Position_Zero(&player->head_pos);
+#ifdef TARGET_PC
+    /* Use the actual animated head joint as the first-person eye anchor.
+     * The skeleton walk still runs when the head mesh is hidden in VR. */
+    pc_fp_set_player_head_height(player->head_pos.y - player->actor_class.world.position.y + 2.0f);
+#endif
 }
 
 static void Player_actor_draw_After_Lfoot3(ACTOR* actorx, GAME* game, cKF_SkeletonInfo_R_c* kf, Gfx** gfx_pp, u8* flag,
