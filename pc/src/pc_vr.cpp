@@ -1038,6 +1038,14 @@ extern "C" float pc_vr_head_yaw_offset_bang(void) {
          * (65536.0f / (float)(2.0 * PC_PI));
 }
 
+/* Desktop backend has no in-game tracked avatar; keep the shared C API link-safe. */
+extern "C" int pc_vr_player_head_angles(short* pitch, short* yaw) {
+    (void)pitch; (void)yaw; return 0;
+}
+extern "C" int pc_vr_player_hand_target(int hand, float out[3]) {
+    (void)hand; (void)out; return 0;
+}
+
 /* Flat-scene: frame-stamped like the FP active flag so scene teardown can
  * never leave it latched (m_play stamps it every play frame). */
 extern u32 pc_frame_counter;
