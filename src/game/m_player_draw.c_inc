@@ -72,6 +72,7 @@ static int Player_actor_draw_Before_FirstPersonVR(GAME* game, cKF_SkeletonInfo_R
 #endif
 
 #ifdef TARGET_PC
+#include <math.h>
 /* Additive upper-body IK: the stock villager animation remains the base pose.
  * Only ordinary locomotion is overlaid; tools, sitting, dialogue and scripted
  * actions retain their authored arm choreography. No leg joint is modified. */
