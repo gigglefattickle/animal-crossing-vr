@@ -8142,7 +8142,8 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
 
         /* Catch/drop animations are owned by the original hand overlay.
          * Wait until it reaches the held pose before committing the drop. */
-        if (quest_drop_pending && hand_ovl->info.item != EMPTY_NO &&
+        if (quest_drop_pending && tag_ovl->sel_tag_idx == 0 &&
+            hand_ovl->info.item != EMPTY_NO &&
             (hand_ovl->info.act == mHD_ACTION_CLOSE_KEEP ||
              hand_ovl->info.act == mHD_ACTION_SASU)) {
             tag = &tag_ovl->tags[0];
