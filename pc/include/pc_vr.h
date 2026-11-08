@@ -77,6 +77,9 @@ float pc_vr_head_yaw_offset_bang(void);
 /* First-person avatar tracking: head angles and controller grip targets in game-world units. */
 int pc_vr_player_head_angles(short* pitch, short* yaw);
 int pc_vr_player_hand_target(int hand, float out[3]);
+/* Grip orientation relative to the villager's facing, in binary-angle units.
+ * Returns pitch/yaw/roll for the tracked wrist; zero when tracking is invalid. */
+int pc_vr_player_hand_angles(int hand, short player_yaw, short* pitch, short* yaw, short* roll);
 
 /* Live first-person gameplay with valid headset tracking. Synthetic tool
  * input and gaze targeting must not leak into dialogue, pause, or submenus. */
