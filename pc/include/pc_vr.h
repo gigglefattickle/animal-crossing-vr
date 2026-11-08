@@ -21,7 +21,9 @@ typedef struct PADStatus PADStatus;
 /* --- Lifecycle --- */
 void pc_vr_init(void);            /* after pc_platform_init (needs GL context) */
 void pc_vr_shutdown(void);
-int  pc_vr_active(void);          /* 1 = VR session live this frame */
+int  pc_vr_active(void);
+/* Right-controller ray hit on the floating VR panel; UV coordinates are 0..1. */
+int pc_vr_inventory_pointer(float* u, float* v, int* trigger_down, int* trigger_pressed);          /* 1 = VR session live this frame */
 
 /* --- Frame flow (graph.c / jsyswrap / pc_vi) --- */
 void pc_vr_frame_begin(void);     /* poll events, update actions, WaitGetPoses */
