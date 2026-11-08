@@ -327,7 +327,7 @@ public final class SetupActivity extends Activity {
         String[] analogKeys = {"bind_left_grip", "bind_right_grip", "bind_left_trigger", "bind_right_trigger"};
         String[] analogNames = {"Left grip action", "Right grip action", "Left trigger action", "Right trigger action"};
         for (int i = 0; i < analogKeys.length; i++) {
-            Spinner spinner = makeSpinner(analogLabels, findPathIndex(baseIni, analogKeys[i], analogPaths, analogPaths[i]));
+            Spinner spinner = makeSpinner(analogLabels, findPathIndex(baseIni, analogKeys[i], analogPaths, analogPaths[new int[]{2, 3, 0, 1}[i]]));
             controls.put(analogKeys[i], spinner); addSetting(panel, analogNames[i], spinner);
         }
         TextView note = new TextView(this);
