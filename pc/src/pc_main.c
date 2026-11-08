@@ -88,6 +88,7 @@ void pc_platform_init(void) {
         exit(1);
     }
 
+    quest_vr_diag("platform.sdl_initialized");
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 #ifdef __ANDROID__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
@@ -146,8 +147,10 @@ void pc_platform_init(void) {
     }
 #else
     quest_platform_bind_vr();
+    quest_vr_diag("platform.android_activity_bound");
 #endif
 
+    quest_vr_diag("platform.gl_context_created");
     SDL_GL_SetSwapInterval(g_pc_settings.vsync);
 
     pc_platform_update_window_size();
@@ -158,8 +161,11 @@ void pc_platform_init(void) {
     }
 #endif
 
+    quest_vr_diag("platform.before_gx_init");
     pc_gx_init();
+    quest_vr_diag("platform.after_gx_init");
     pc_texture_pack_init();
+    quest_vr_diag("platform.texture_pack_initialized");
 #ifdef PC_ENHANCEMENTS
     if (g_pc_settings.preload_textures) {
         pc_texture_pack_preload_all();
