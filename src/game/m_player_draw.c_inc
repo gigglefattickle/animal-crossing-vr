@@ -89,7 +89,8 @@ static void Player_actor_vr_adjust_arm(PLAYER_ACTOR* player, int joint_no, s_xyz
          player->now_main_index != mPlayer_INDEX_WALK &&
          player->now_main_index != mPlayer_INDEX_RUN &&
          player->now_main_index != mPlayer_INDEX_DASH &&
-         player->now_main_index != mPlayer_INDEX_WADE) ||
+         player->now_main_index != mPlayer_INDEX_WADE &&
+         player->now_main_index != mPlayer_INDEX_TALK) ||
         !pc_vr_player_hand_target(hand, target)) {
         return;
     }
