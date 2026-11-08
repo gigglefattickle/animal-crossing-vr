@@ -81,89 +81,111 @@ public final class SetupActivity extends Activity {
     }
 
     private void render() {
+        final int leafGreen = android.graphics.Color.rgb(117, 168, 93);
+        final int deepGreen = android.graphics.Color.rgb(49, 91, 57);
+        final int cream = android.graphics.Color.rgb(248, 240, 217);
+        final int warmText = android.graphics.Color.rgb(74, 82, 58);
+        final int paleGreen = android.graphics.Color.rgb(220, 235, 203);
+        final int headerGreen = android.graphics.Color.rgb(184, 217, 157);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(28, 24, 28, 24);
-        // Cozy Animal Crossing-inspired launcher palette: leaf green, warm cream,
-        // and soft garden colors. Kept native so it remains lightweight on Quest.
-        final int leafGreen = android.graphics.Color.rgb(61, 117, 72);
-        final int deepGreen = android.graphics.Color.rgb(49, 91, 57);
-        final int softGreen = android.graphics.Color.rgb(224, 241, 211);
-        final int cream = android.graphics.Color.rgb(255, 249, 229);
-        final int warmText = android.graphics.Color.rgb(74, 82, 58);
-        root.setBackgroundColor(android.graphics.Color.rgb(220, 239, 204));
+        root.setPadding(24, 18, 24, 16);
+        root.setBackgroundColor(paleGreen);
 
+        // Wide, soft-green welcome banner from the approved launcher concept.
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(18, 14, 18, 14);
+        header.setBackground(makeRoundedBackground(headerGreen, 24, 0));
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView heading = new TextView(this);
-        heading.setText("ANIMAL CROSSING");
+        heading.setText("🍃 Animal Crossing VR");
         heading.setTextColor(deepGreen);
-        heading.setTextSize(24);
-        heading.setLetterSpacing(0.12f);
-        heading.setGravity(Gravity.CENTER);
-        root.addView(heading, new LinearLayout.LayoutParams(-1, 64));
+        heading.setTextSize(23);
+        heading.setTypeface(null, android.graphics.Typeface.BOLD);
+        titleRow.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+        Button settingsGear = new Button(this);
+        settingsGear.setText("⚙");
+        settingsGear.setTextSize(21);
+        settingsGear.setMinWidth(48);
+        settingsGear.setMinimumWidth(48);
+        settingsGear.setPadding(4, 0, 4, 0);
+        settingsGear.setBackground(makeRoundedBackground(cream, 18, 0));
+        settingsGear.setTextColor(deepGreen);
+        settingsGear.setOnClickListener(v -> showOptions());
+        titleRow.addView(settingsGear, new LinearLayout.LayoutParams(48, 48));
+        header.addView(titleRow);
 
-        TextView subtitle = new TextView(this);
-        subtitle.setText("GAME LIBRARY");
-        subtitle.setTextColor(leafGreen);
-        subtitle.setTextSize(12);
-        subtitle.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(-1, 42);
-        subtitleParams.topMargin = 14;
-        root.addView(subtitle, subtitleParams);
+        TextView welcome = new TextView(this);
+        welcome.setText("WELCOME BACK, VILLAGER!");
+        welcome.setTextColor(deepGreen);
+        welcome.setTextSize(11);
+        welcome.setLetterSpacing(0.10f);
+        LinearLayout.LayoutParams welcomeParams = new LinearLayout.LayoutParams(-1, -2);
+        welcomeParams.topMargin = 8;
+        header.addView(welcome, welcomeParams);
+        root.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout gameCard = new LinearLayout(this);
         gameCard.setOrientation(LinearLayout.VERTICAL);
-        gameCard.setPadding(22, 22, 22, 22);
+        gameCard.setPadding(16, 16, 16, 16);
         gameCard.setBackground(makeCardBackground());
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
+        cardParams.topMargin = 18;
+
         ImageView cover = new ImageView(this);
         cover.setImageBitmap(loadLauncherCover());
         cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(-1, 220);
-        coverParams.bottomMargin = 18;
+        cover.setBackground(makeRoundedBackground(android.graphics.Color.rgb(205, 224, 184), 18, 0));
+        cover.setClipToOutline(true);
+        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(-1, 190);
+        coverParams.bottomMargin = 14;
         gameCard.addView(cover, coverParams);
 
         TextView gameTitle = new TextView(this);
-        gameTitle.setText("Animal Crossing");
+        gameTitle.setText("Animal Crossing: Wild World");
         gameTitle.setTextColor(deepGreen);
-        gameTitle.setTextSize(22);
+        gameTitle.setTextSize(21);
+        gameTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         gameCard.addView(gameTitle);
+
         status = new TextView(this);
         status.setTextColor(warmText);
-        status.setTextSize(14);
+        status.setTextSize(13);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
-        statusParams.topMargin = 10;
+        statusParams.topMargin = 5;
         gameCard.addView(status, statusParams);
 
         playButton = new Button(this);
-        playButton.setText("PLAY");
+        playButton.setText("▶  PLAY");
         styleLauncherButton(playButton, true, leafGreen, deepGreen, cream);
+        playButton.setTextSize(18);
         playButton.setOnClickListener(v -> launchGame());
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, -2);
-        playParams.topMargin = 22;
+        playParams.topMargin = 16;
         gameCard.addView(playButton, playParams);
-        root.addView(gameCard, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(gameCard, cardParams);
 
-        Button addGame = new Button(this);
-        addGame.setText("Add / Change Game File");
-        styleLauncherButton(addGame, false, leafGreen, deepGreen, cream);
-        addGame.setOnClickListener(v -> chooseGame());
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, -2);
-        actionParams.topMargin = 18;
-        root.addView(addGame, actionParams);
+        // Four large, evenly sized shortcut tiles matching the concept image.
+        LinearLayout firstRow = new LinearLayout(this);
+        firstRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, 62);
+        rowParams.topMargin = 14;
+        addLauncherTile(firstRow, "📂  Load Game", () -> chooseGame(), leafGreen, deepGreen, cream);
+        addLauncherTile(firstRow, "⚙  Settings", () -> showOptions(), leafGreen, deepGreen, cream);
+        root.addView(firstRow, rowParams);
 
-        Button options = new Button(this);
-        options.setText("OPTIONS");
-        styleLauncherButton(options, false, leafGreen, deepGreen, cream);
-        options.setOnClickListener(v -> showOptions());
-        root.addView(options, actionParams);
-
-        Button crashReport = new Button(this);
-        crashReport.setText("CRASH REPORT / EXPORT");
-        styleLauncherButton(crashReport, false, leafGreen, deepGreen, cream);
-        crashReport.setOnClickListener(v -> exportDiagnostics());
-        LinearLayout.LayoutParams crashParams = new LinearLayout.LayoutParams(-1, -2);
-        crashParams.topMargin = 10;
-        root.addView(crashReport, crashParams);
+        LinearLayout secondRow = new LinearLayout(this);
+        secondRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams secondRowParams = new LinearLayout.LayoutParams(-1, 62);
+        secondRowParams.topMargin = 9;
+        addLauncherTile(secondRow, "💾  Save Manager", () -> showSaveManager(), leafGreen, deepGreen, cream);
+        addLauncherTile(secondRow, "🎮  Controller Setup", () -> showControllerBindings(), leafGreen, deepGreen, cream);
+        root.addView(secondRow, secondRowParams);
 
         TextView versionFooter = new TextView(this);
         String versionName = "unknown";
@@ -181,13 +203,46 @@ public final class SetupActivity extends Activity {
         versionFooter.setTextSize(11);
         versionFooter.setGravity(Gravity.CENTER);
         versionFooter.setLetterSpacing(0.06f);
-        LinearLayout.LayoutParams versionParams =
-                new LinearLayout.LayoutParams(-1, 36);
-        versionParams.topMargin = 12;
+        LinearLayout.LayoutParams versionParams = new LinearLayout.LayoutParams(-1, 34);
+        versionParams.topMargin = 8;
         root.addView(versionFooter, versionParams);
 
         setContentView(root);
         refreshState();
+    }
+
+    private void addLauncherTile(LinearLayout row, String label, Runnable action,
+            int leafGreen, int deepGreen, int cream) {
+        Button tile = new Button(this);
+        tile.setText(label);
+        tile.setTextSize(12);
+        tile.setAllCaps(false);
+        tile.setSingleLine(false);
+        tile.setPadding(4, 4, 4, 4);
+        tile.setBackground(makeRoundedBackground(cream, 18,
+                android.graphics.Color.rgb(166, 201, 140)));
+        tile.setTextColor(deepGreen);
+        tile.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1);
+        params.setMargins(4, 0, 4, 0);
+        row.addView(tile, params);
+    }
+
+    private android.graphics.drawable.Drawable makeRoundedBackground(int color, int radius, int stroke) {
+        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(radius);
+        if (stroke != 0) shape.setStroke(2, stroke);
+        return shape;
+    }
+
+    private void showSaveManager() {
+        String[] actions = {"Load Save Archive", "Export Save Archive"};
+        new AlertDialog.Builder(this).setTitle("Save Manager")
+            .setItems(actions, (dialog, which) -> {
+                if (which == 0) chooseSaveArchive();
+                else exportSaveArchive();
+            }).show();
     }
 
     private android.graphics.Bitmap loadLauncherCover() {
