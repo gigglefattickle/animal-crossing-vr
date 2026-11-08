@@ -25,6 +25,7 @@
 #include "m_editEndChk_ovl.h"
 #include "sys_matrix.h"
 #include "m_roll_lib.h"
+#include "pc_vr.h"
 #include "m_house.h"
 
 static void mTG_mark_main_CLR(Submenu* submenu, const mSM_MenuInfo_c* menu_info);
@@ -8062,6 +8063,49 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
 
     if (tag_ovl->sel_tag_idx < 0 || tag_ovl->sel_tag_idx >= mTG_TAG_NUM) {
         return;
+    }
+
+    /*
+     * Quest right-controller ray: map the panel UV back to the inventory's
+     * native 5x3 item grid. Reuse the original tag setup and A-button action
+     * so item actions, restrictions, and hand animations stay game-owned.
+     */
+    if (menu_info->menu_type == mSM_OVL_INVENTORY &&
+        menu_info->data0 == mSM_IV_OPEN_NORMAL &&
+        tag_ovl->sel_tag_idx == 0 && tag->type == mTG_TYPE_NONE &&
+        hand_ovl->info.wait_timer == 0 && hand_ovl->info.move_flag == FALSE) {
+        float u = 0.0f, v = 0.0f;
+        int trigger_down = 0, trigger_pressed = 0;
+        if (pc_vr_inventory_pointer(&u, &v, &trigger_down, &trigger_pressed)) {
+            const float panel_x = (u - 0.5f) * 320.0f;
+            const float panel_y = (0.5f - v) * 240.0f;
+            int col = 0, row = 0, i;
+            float best_x = 1.0e9f, best_y = 1.0e9f;
+            for (i = 0; i < 5; i++) {
+                float d = fabsf(panel_x - (float)mTG_item_col_pos[i]);
+                if (d < best_x) { best_x = d; col = i; }
+            }
+            for (i = 0; i < 3; i++) {
+                float d = fabsf(panel_y - (float)mTG_item_line_pos[i]);
+                if (d < best_y) { best_y = d; row = i; }
+            }
+            /* Reject rays outside the item-grid footprint, not just the
+             * nearest-neighbour cell, to avoid accidental selections. */
+            if (best_x < 12.5f && best_y < 12.5f) {
+                int changed = tag->table != mTG_TABLE_ITEM ||
+                              tag->tag_col != col || tag->tag_row != row;
+                if (changed) {
+                    tag->table = mTG_TABLE_ITEM;
+                    tag->tag_col = col;
+                    tag->tag_row = row;
+                    mTG_init_tag_data_item_win(submenu);
+                    tag = &tag_ovl->tags[0];
+                }
+                if (trigger_pressed) {
+                    submenu->overlay->menu_control.trigger |= BUTTON_A;
+                }
+            }
+        }
     }
 
     if (hand_ovl->info.wait_timer > 0 && inv_ovl != NULL) {
