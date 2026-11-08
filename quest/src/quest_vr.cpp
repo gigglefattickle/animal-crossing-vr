@@ -17,6 +17,8 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <string>
+#include <jni.h>
 #define pcvr_log quest_xr_log
 extern "C" {
 void pc_gx_draw_pending(void);
