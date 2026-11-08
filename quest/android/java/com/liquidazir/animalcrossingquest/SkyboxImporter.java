@@ -78,7 +78,8 @@ final class SkyboxImporter {
             "sky/d_2d_b_cld_bg_ncg.bin", "sky/d_2d_b_cld_f0_bg_ncl.bin",
             "sky/d_2d_b_cld_f0_bg_nsc.bin", "sky/d_2d_b_cld_c0_bg_nsc.bin",
             "sky/d_2d_b_cld_r0_bg_ncl.bin", "sky/d_2d_b_cld_r0_bg_nsc.bin",
-            "sky/d_2d_star_ncg.bin", "sky/d_2d_star_ncl.bin", "sky/d_2d_star_nsc.bin"
+            "sky/d_2d_star_ncg.bin", "sky/d_2d_star_ncl.bin", "sky/d_2d_star_nsc.bin",
+            "sky/a_sky_obj_ncg.bin", "sky/a_sky_moon_obj_ncl.bin"
         };
         for (String name : required) {
             File asset = new File(staging, name);
@@ -91,7 +92,9 @@ final class SkyboxImporter {
             new File(staging, "sky/d_2d_sky00_ncl.bin").length() != 32 ||
             new File(staging, "sky/d_2d_sky00_nsc.bin").length() != 1024 ||
             new File(staging, "sky/d_2d_b_cld_bg_ncg.bin").length() != 2048 ||
-            new File(staging, "sky/d_2d_star_ncg.bin").length() != 512) {
+            new File(staging, "sky/d_2d_star_ncg.bin").length() != 512 ||
+            new File(staging, "sky/a_sky_obj_ncg.bin").length() != 32768 ||
+            new File(staging, "sky/a_sky_moon_obj_ncl.bin").length() != 320) {
             deleteTree(staging);
             throw new IllegalArgumentException("Sky ZIP contains incompatible Wild World graphics data.");
         }
