@@ -338,3 +338,220 @@ static unsigned char* decode_cloud_map(const unsigned char* ncg,const unsigned c
     return rgba;
 }
 
+static GLuint upload_rgba_texture(int width,int height,const unsigned char* pixels) {
+    GLint previous_binding=0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_binding);
+    GLuint texture=0;
+    glGenTextures(1,&texture);
+    if (!texture) return 0;
+    glBindTexture(GL_TEXTURE_2D,texture);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    glBindTexture(GL_TEXTURE_2D,(GLuint)previous_binding);
+    return texture;
+}
+
+static int load_wild_world_assets(void) {
+    unsigned char* sky_ncg=read_asset("acww_sky/sky/d_2d_sky00_ncg.bin",16384,NULL);
+    unsigned char* sky_ncl=read_asset("acww_sky/sky/d_2d_sky00_ncl.bin",32,NULL);
+    unsigned char* sky_nsc=read_asset("acww_sky/sky/d_2d_sky00_nsc.bin",1024,NULL);
+    unsigned char* star_ncg=read_asset("acww_sky/sky/d_2d_star_ncg.bin",512,NULL);
+    unsigned char* star_ncl=read_asset("acww_sky/sky/d_2d_star_ncl.bin",32,NULL);
+    unsigned char* star_nsc=read_asset("acww_sky/sky/d_2d_star_nsc.bin",2048,NULL);
+    unsigned char* moon_ncg=read_asset("acww_sky/sky/a_sky_obj_ncg.bin",32768,NULL);
+    unsigned char* moon_ncl=read_asset("acww_sky/sky/a_sky_moon_obj_ncl.bin",320,NULL);
+    acww_cloud_ncg=read_asset("acww_sky/sky/d_2d_b_cld_bg_ncg.bin",2048,NULL);
+    acww_cloud_f0_map=read_asset("acww_sky/sky/d_2d_b_cld_f0_bg_nsc.bin",1024,NULL);
+    acww_cloud_c0_map=read_asset("acww_sky/sky/d_2d_b_cld_c0_bg_nsc.bin",1024,NULL);
+    acww_cloud_r0_map=read_asset("acww_sky/sky/d_2d_b_cld_r0_bg_nsc.bin",1024,NULL);
+    acww_cloud_f0_palette=read_asset("acww_sky/sky/d_2d_b_cld_f0_bg_ncl.bin",384,NULL);
+    acww_cloud_r0_palette=read_asset("acww_sky/sky/d_2d_b_cld_r0_bg_ncl.bin",384,NULL);
+    int ok=sky_ncg && sky_ncl && sky_nsc && star_ncg && star_ncl && star_nsc && moon_ncg && moon_ncl &&
+        acww_cloud_ncg && acww_cloud_f0_map && acww_cloud_c0_map && acww_cloud_r0_map &&
+        acww_cloud_f0_palette && acww_cloud_r0_palette;
+    if (ok) {
+        unsigned char* sky=decode_sky_strip(sky_ncg,sky_ncl,sky_nsc);
+        unsigned char* stars=decode_star_map(star_ncg,star_ncl,star_nsc);
+        unsigned char* moon=decode_moon_sprite(moon_ncg,moon_ncl);
+        unsigned char* clouds=decode_cloud_map(acww_cloud_ncg,acww_cloud_f0_palette,acww_cloud_f0_map,7);
+        if (sky && stars && clouds && moon) {
+            acww_sky_texture=upload_rgba_texture(512,128,sky);
+            acww_star_texture=upload_rgba_texture(256,256,stars);
+            acww_moon_texture=upload_rgba_texture(32,32,moon);
+            acww_cloud_texture=upload_rgba_texture(256,128,clouds);
+            acww_assets_ready=acww_sky_texture && acww_star_texture && acww_cloud_texture && acww_moon_texture;
+            acww_cloud_variant=0; acww_palette_bank=7;
+        }
+        free(sky); free(stars); free(clouds); free(moon);
+    }
+    free(sky_ncg); free(sky_ncl); free(sky_nsc);
+    free(star_ncg); free(star_ncl); free(star_nsc); free(moon_ncg); free(moon_ncl);
+    if (!acww_assets_ready) {
+        if (acww_sky_texture) glDeleteTextures(1,&acww_sky_texture);
+        if (acww_cloud_texture) glDeleteTextures(1,&acww_cloud_texture);
+        if (acww_star_texture) glDeleteTextures(1,&acww_star_texture);
+        if (acww_moon_texture) glDeleteTextures(1,&acww_moon_texture);
+        acww_sky_texture=acww_cloud_texture=acww_star_texture=acww_moon_texture=0;
+        free(acww_cloud_ncg); free(acww_cloud_f0_map); free(acww_cloud_c0_map); free(acww_cloud_r0_map);
+        free(acww_cloud_f0_palette); free(acww_cloud_r0_palette);
+        acww_cloud_ncg=acww_cloud_f0_map=acww_cloud_c0_map=acww_cloud_r0_map=NULL;
+        acww_cloud_f0_palette=acww_cloud_r0_palette=NULL;
+    } else {
+        fprintf(stdout,"[Sky] Imported Wild World sky layers loaded\n");
+    }
+    return acww_assets_ready;
+}
+
+static void update_wild_world_clouds(float game_seconds,float cloudiness) {
+    if (!acww_assets_ready || !acww_cloud_texture) return;
+    int bank=((int)(game_seconds/7200.0f))%12;
+    if (bank<0) bank=0;
+    int variant=cloudiness>0.68f ? 2 : (cloudiness>0.28f ? 1 : 0);
+    if (bank==acww_palette_bank && variant==acww_cloud_variant) return;
+    const unsigned char* map=variant==2 ? acww_cloud_r0_map :
+                             variant==1 ? acww_cloud_c0_map : acww_cloud_f0_map;
+    const unsigned char* palette=variant==2 ? acww_cloud_r0_palette : acww_cloud_f0_palette;
+    unsigned char* pixels=decode_cloud_map(acww_cloud_ncg,palette,map,bank);
+    if (!pixels) return;
+    GLint previous_binding=0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_binding);
+    glBindTexture(GL_TEXTURE_2D,acww_cloud_texture);
+    glTexSubImage2D(GL_TEXTURE_2D,0,0,0,256,128,GL_RGBA,GL_UNSIGNED_BYTE,pixels);
+    glBindTexture(GL_TEXTURE_2D,(GLuint)previous_binding);
+    free(pixels);
+    acww_cloud_variant=variant;
+    acww_palette_bank=bank;
+}
+
+static void free_wild_world_assets(void) {
+    if (acww_sky_texture) glDeleteTextures(1,&acww_sky_texture);
+    if (acww_cloud_texture) glDeleteTextures(1,&acww_cloud_texture);
+    if (acww_star_texture) glDeleteTextures(1,&acww_star_texture);
+    if (acww_moon_texture) glDeleteTextures(1,&acww_moon_texture);
+    acww_sky_texture=acww_cloud_texture=acww_star_texture=acww_moon_texture=0;
+    free(acww_cloud_ncg); free(acww_cloud_f0_map); free(acww_cloud_c0_map); free(acww_cloud_r0_map);
+    free(acww_cloud_f0_palette); free(acww_cloud_r0_palette);
+    acww_cloud_ncg=acww_cloud_f0_map=acww_cloud_c0_map=acww_cloud_r0_map=NULL;
+    acww_cloud_f0_palette=acww_cloud_r0_palette=NULL;
+    acww_assets_checked=acww_assets_ready=0;
+    acww_cloud_variant=acww_palette_bank=-1;
+}
+
+extern "C" void pc_sky_set_environment(int enabled, float time, float cloudiness) {
+    outdoors = enabled;
+    seconds = time;
+    overcast = cloudiness;
+    environment_frame = pc_frame_counter;
+    have_environment = 1;
+    environment_active = enabled;
+}
+
+static void update_environment_active(void) {
+    // Freeze the last live answer while paused; bypassing age checks outright
+    // would revive an outdoor sky that already expired on a scene transition.
+    if (!g_pc_paused)
+        environment_active = have_environment && outdoors &&
+            (uint32_t)(pc_frame_counter-environment_frame)<=1u;
+}
+
+extern "C" void pc_sky_begin_pass(void) {
+    drawn = have_view = 0;
+    update_environment_active(); // expire even when a scene has no perspective draws
+}
+extern "C" void pc_sky_set_view(const float* matrix) {
+    memcpy(view,matrix,sizeof(view));
+    have_view = 1;
+}
+
+extern "C" int pc_sky_draw(const float* projection, const float* correction) {
+    update_environment_active();
+    if (drawn || !have_view || !environment_active || !g_pc_settings.skybox) return 0;
+    if (fabsf(projection[0])<0.00001f || fabsf(projection[5])<0.00001f) return 0;
+    // Compose X*V for VR, then transpose its normalized rotation. Translation is
+    // deliberately discarded, keeping clouds at infinity for both eyes and scales.
+    float rotation[9];
+    for (int r=0;r<3;r++) {
+        float row[3];
+        for (int c=0;c<3;c++) {
+            row[c] = correction ? correction[r*4]*view[c] + correction[r*4+1]*view[4+c]
+                                + correction[r*4+2]*view[8+c] : view[r*4+c];
+        }
+        float length = sqrtf(row[0]*row[0]+row[1]*row[1]+row[2]*row[2]);
+        if (!(length>0.000001f) || !std::isfinite(length)) return 0;
+        for (int c=0;c<3;c++) rotation[c*3+r]=row[c]/length;
+    }
+    if (!init()) return 0;
+    if (!acww_assets_checked) {
+        acww_assets_checked=1;
+        load_wild_world_assets();
+    }
+    if (acww_assets_ready) update_wild_world_clouds(seconds,overcast);
+    GLint previous_program, previous_vao, depth_func;
+    GLint previous_active_texture, previous_texture0, previous_texture1, previous_texture2, previous_texture3;
+    pc_gl_depth_value depth_range[2];
+    GLboolean depth_mask, color_mask[4];
+    GLboolean depth = glIsEnabled(GL_DEPTH_TEST), blend = glIsEnabled(GL_BLEND);
+    GLboolean cull = glIsEnabled(GL_CULL_FACE), scissor = glIsEnabled(GL_SCISSOR_TEST);
+#ifndef __ANDROID__
+    GLboolean logic = glIsEnabled(GL_COLOR_LOGIC_OP);
+#endif
+    glGetIntegerv(GL_CURRENT_PROGRAM,&previous_program);
+    glGetIntegerv(GL_ACTIVE_TEXTURE,&previous_active_texture);
+    glActiveTexture(GL_TEXTURE0); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture0);
+    glActiveTexture(GL_TEXTURE1); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture1);
+    glActiveTexture(GL_TEXTURE2); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture2);
+    glActiveTexture(GL_TEXTURE3); glGetIntegerv(GL_TEXTURE_BINDING_2D,&previous_texture3);
+    glActiveTexture(GL_TEXTURE0);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING,&previous_vao);
+    glGetIntegerv(GL_DEPTH_FUNC,&depth_func);
+    pc_gl_get_depth_range(depth_range);
+    glGetBooleanv(GL_DEPTH_WRITEMASK,&depth_mask);
+    glGetBooleanv(GL_COLOR_WRITEMASK,color_mask);
+    glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_FALSE);
+    pc_gl_depth_range(0.0,1.0);
+    glDisable(GL_BLEND); glDisable(GL_CULL_FACE); glDisable(GL_SCISSOR_TEST);
+#ifndef __ANDROID__
+    glDisable(GL_COLOR_LOGIC_OP);
+#endif
+    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    glUseProgram(program); glBindVertexArray(vao);
+    glUniform4f(u_projection,projection[0],projection[5],projection[2],projection[6]);
+    glUniformMatrix3fv(u_rotation,1,GL_TRUE,rotation);
+    glUniform2f(u_environment,seconds,overcast);
+    glUniform1i(u_acww_assets,acww_assets_ready ? 1 : 0);
+    glUniform1i(u_acww_sky,0); glUniform1i(u_acww_clouds,1); glUniform1i(u_acww_stars,2); glUniform1i(u_acww_moon,3);
+    glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,acww_sky_texture);
+    glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,acww_cloud_texture);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,acww_star_texture);
+    glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D,acww_moon_texture);
+    glDrawArrays(GL_TRIANGLES,0,3);
+    // Exact restoration also preserves the GX renderer's cached state.
+    glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture0);
+    glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture1);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture2);
+    glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D,(GLuint)previous_texture3);
+    glActiveTexture((GLenum)previous_active_texture);
+    glUseProgram(previous_program); glBindVertexArray(previous_vao);
+    glDepthFunc(depth_func); glDepthMask(depth_mask);
+    pc_gl_depth_range(depth_range[0],depth_range[1]);
+    glColorMask(color_mask[0],color_mask[1],color_mask[2],color_mask[3]);
+    if (!depth) glDisable(GL_DEPTH_TEST);
+    if (blend) glEnable(GL_BLEND);
+    if (cull) glEnable(GL_CULL_FACE);
+    if (scissor) glEnable(GL_SCISSOR_TEST);
+#ifndef __ANDROID__
+    if (logic) glEnable(GL_COLOR_LOGIC_OP);
+#endif
+    drawn = 1;
+    return 1;
+}
+
+extern "C" void pc_sky_shutdown(void) {
+    free_wild_world_assets();
+    if (program) glDeleteProgram(program);
+    if (vao) glDeleteVertexArrays(1,&vao);
+    program=vao=0; failed=have_environment=have_view=drawn=environment_active=0;
+}
