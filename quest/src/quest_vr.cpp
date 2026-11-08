@@ -535,7 +535,7 @@ int pc_vr_player_hand_target(int hand, float out[3]) {
             for (int i = 0; i < 3; ++i) smoothed[hand][i] = target[i];
             smoothed_valid[hand] = 1;
         } else {
-            const float follow = 0.65f;
+            const float follow = 0.82f;
             for (int i = 0; i < 3; ++i)
                 smoothed[hand][i] += (target[i] - smoothed[hand][i]) * follow;
         }
