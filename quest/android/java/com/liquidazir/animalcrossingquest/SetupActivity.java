@@ -324,7 +324,7 @@ public final class SetupActivity extends Activity {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
                     String imported = SkyboxImporter.importZip(this, data.getData());
-                    status.setText("Imported " + imported + ".\\nRestart the game to activate the Wild World sky.");
+                    status.setText("Imported " + imported + ".\nRestart the game to activate the Wild World sky.");
                     Diagnostics.record(this, "launcher.wild_world_sky_imported");
                 } catch (Exception error) {
                     Log.e(TAG, "Wild World sky import failed", error);
