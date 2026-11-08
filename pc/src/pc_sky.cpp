@@ -99,8 +99,11 @@ void main() {
                        * step(0.986,starSeed);
             sky += vec3(0.72,0.82,1.0)*star*night*0.72;
         }
-        vec2 moonPoint = vec2(azimuth-0.72,h-0.43);
-        moonPoint.x = min(moonPoint.x,1.0-moonPoint.x);
+        float moonAzimuth = fract(0.72+environment.x/86400.0);
+        float moonDelta = azimuth-moonAzimuth;
+        if (moonDelta>0.5) moonDelta-=1.0;
+        if (moonDelta< -0.5) moonDelta+=1.0;
+        vec2 moonPoint = vec2(moonDelta,h-0.43);
         if (acww_assets != 0) {
             if (abs(moonPoint.x)<0.04 && abs(moonPoint.y)<0.04) {
                 vec2 moonUV = vec2(moonPoint.x/0.08+0.5,0.5-moonPoint.y/0.08);
