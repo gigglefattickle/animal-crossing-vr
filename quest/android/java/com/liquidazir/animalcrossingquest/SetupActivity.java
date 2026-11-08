@@ -103,7 +103,7 @@ public final class SetupActivity extends Activity {
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView heading = new TextView(this);
-        heading.setText("🍃 Animal Crossing VR");
+        heading.setText("Animal Crossing VR");
         heading.setTextColor(deepGreen);
         heading.setTextSize(23);
         heading.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -147,7 +147,7 @@ public final class SetupActivity extends Activity {
         gameCard.addView(cover, coverParams);
 
         TextView gameTitle = new TextView(this);
-        gameTitle.setText("Animal Crossing: Wild World");
+        gameTitle.setText("Animal Crossing");
         gameTitle.setTextColor(deepGreen);
         gameTitle.setTextSize(21);
         gameTitle.setTypeface(null, android.graphics.Typeface.BOLD);
