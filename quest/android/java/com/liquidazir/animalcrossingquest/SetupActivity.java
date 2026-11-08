@@ -41,7 +41,7 @@ public final class SetupActivity extends Activity {
     private static final int EXPORT_DIAGNOSTICS = 4108;
     private static final int IMPORT_TEXTURES = 4109;
     private static final int IMPORT_MOD = 4110;
-    private static final int IMPORT_SKYBOX = 4111;
+    private static final int IMPORT_SKYBOX = 4111;\n    private static final int IMPORT_SAVES = 4112;\n    private static final int EXPORT_SAVES = 4113;
     private static final String TAG = "ACQuestSetup";
     private TextView status;
     private Button playButton;
@@ -148,7 +148,7 @@ public final class SetupActivity extends Activity {
 
     private void showOptions() {
         String[] options = {"VR / Graphics Settings", "Import Wild World Sky ZIP",
-                "Import Textures", "Import Mod ZIP", "Export Diagnostics"};
+                "Import Textures", "Import Mod ZIP", "Load Save Archive", "Export Save Archive", "Export Diagnostics"};
         new AlertDialog.Builder(this).setTitle("Options")
             .setItems(options, (dialog, which) -> {
                 if (which == 0) showGraphicsSettings();
@@ -374,6 +374,30 @@ public final class SetupActivity extends Activity {
             }
             return;
         }
+        if (requestCode == IMPORT_SAVES) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                try {
+                    status.setText(SaveArchive.importZip(this, data.getData()));
+                    Diagnostics.record(this, "launcher.save_archive_imported");
+                } catch (Exception error) {
+                    Log.e(TAG, "Save archive import failed", error);
+                    status.setText("Save import failed: " + error.getMessage());
+                }
+            }
+            return;
+        }
+        if (requestCode == EXPORT_SAVES) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                try {
+                    status.setText(SaveArchive.exportZip(this, data.getData()));
+                    Diagnostics.record(this, "launcher.save_archive_exported");
+                } catch (Exception error) {
+                    Log.e(TAG, "Save archive export failed", error);
+                    status.setText("Save export failed: " + error.getMessage());
+                }
+            }
+            return;
+        }
         if (requestCode == EXPORT_DIAGNOSTICS) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 writeDiagnostics(data.getData());
@@ -392,6 +416,22 @@ public final class SetupActivity extends Activity {
             status.setText("Import failed: " + error.getMessage() + "\nYour previous game and saves were kept.");
         }
         refreshState();
+    }
+
+    private void chooseSaveArchive() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/zip");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"application/zip", "application/x-zip-compressed", "application/octet-stream"});
+        startActivityForResult(intent, IMPORT_SAVES);
+    }
+
+    private void exportSaveArchive() {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/zip");
+        intent.putExtra(Intent.EXTRA_TITLE, "AnimalCrossing-Quest-Saves.zip");
+        startActivityForResult(intent, EXPORT_SAVES);
     }
 
     private String displayName(Uri uri) {
