@@ -243,6 +243,8 @@ public final class SetupActivity extends Activity {
         Spinner aa = makeSpinner(aaOptions, readSetting(ini, "msaa", 0) == 2 ? 1 : readSetting(ini, "msaa", 0) == 4 ? 2 : 0);
         Spinner preload = makeSpinner(preloadOptions, Math.max(0, Math.min(2, readSetting(ini, "preload_textures", 0))));
         Spinner draw = makeSpinner(drawOptions, Math.max(0, Math.min(5, readSetting(ini, "vr_draw_radius", 0))));
+        String[] heightOptions = {"Standard view height", "Match villager model height"};
+        Spinner playerHeight = makeSpinner(heightOptions, readSetting(ini, "fp_eye_height", 52) >= 60 ? 1 : 0);
         android.widget.CheckBox filtering = new android.widget.CheckBox(this);
         filtering.setText("Use game texture filtering");
         filtering.setChecked(readSetting(ini, "texture_filtering", 1) != 0);
@@ -255,6 +257,7 @@ public final class SetupActivity extends Activity {
         addSetting(panel, "Anti-aliasing", aa);
         addSetting(panel, "HD texture loading", preload);
         addSetting(panel, "VR terrain draw distance", draw);
+        addSetting(panel, "VR player viewpoint", playerHeight);
         panel.addView(filtering);
         panel.addView(skybox);
         new AlertDialog.Builder(this).setTitle("Graphics Settings")
@@ -264,6 +267,7 @@ public final class SetupActivity extends Activity {
                 String updated = setSetting(baseIni, "msaa", new int[]{0,2,4}[aa.getSelectedItemPosition()]);
                 updated = setSetting(updated, "preload_textures", preload.getSelectedItemPosition());
                 updated = setSetting(updated, "vr_draw_radius", draw.getSelectedItemPosition());
+                updated = setSetting(updated, "fp_eye_height", playerHeight.getSelectedItemPosition() == 1 ? 64 : 52);
                 updated = setSetting(updated, "texture_filtering", filtering.isChecked() ? 1 : 0);
                 updated = setSetting(updated, "skybox", skybox.isChecked() ? 1 : 0);
                 try {
