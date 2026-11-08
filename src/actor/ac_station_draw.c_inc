@@ -10,10 +10,10 @@ extern int pc_vr_active(void);
 static int aSTA_actor_draw_before(GAME* game, cKF_SkeletonInfo_R_c* keyframe, int joint_idx, Gfx** joint_shape,
                                    u8* joint_flags, void* arg, s_xyz* joint_rot, xyz_t* joint_pos) {
 #ifdef TARGET_PC
-    /* The station barrier is split across the long- and short-side rail
-     * joints. Hide both in VR so the unused platform fence cannot appear
-     * from the first-person/train-ride viewpoints; retain the station body. */
-    if ((joint_idx == 2 || joint_idx == 4) && pc_vr_active()) {
+    /* Joint 2 is the long-side platform barrier. It is the rail that
+     * intrudes into the elevated/first-person VR view. Keep joint 4 (the
+     * short end rail) visible so the station platform remains enclosed. */
+    if (joint_idx == 2 && pc_vr_active()) {
         *joint_shape = NULL;
     }
 #endif
