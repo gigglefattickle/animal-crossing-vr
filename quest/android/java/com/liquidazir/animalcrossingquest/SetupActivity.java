@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ImageView;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
@@ -181,8 +182,15 @@ public final class SetupActivity extends Activity {
                 else if (which == 1) chooseSkybox();
                 else if (which == 2) chooseContent(IMPORT_TEXTURES, "Import texture files or a ZIP texture pack");
                 else if (which == 3) chooseContent(IMPORT_MOD, "Import a ZIP mod package");
-                else exportDiagnostics();
+                else if (which == 4) chooseSaveArchive();
+                else if (which == 5) exportSaveArchive();
+                else if (which == 6) exportDiagnostics();
             }).show();
+    }
+
+    private void showResult(String message, boolean success) {
+        if (status != null) status.setText((success ? "✓ " : "✕ ") + message);
+        Toast.makeText(this, (success ? "✓ " : "✕ ") + message, Toast.LENGTH_LONG).show();
     }
 
     private void refreshState() {
@@ -379,11 +387,11 @@ public final class SetupActivity extends Activity {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
                     String imported = SkyboxImporter.importZip(this, data.getData());
-                    status.setText("Imported " + imported + ".\nRestart the game to activate the Wild World sky.");
+                    showResult("Imported " + imported + ". Restart the game to activate the Wild World sky.", true);
                     Diagnostics.record(this, "launcher.wild_world_sky_imported");
                 } catch (Exception error) {
                     Log.e(TAG, "Wild World sky import failed", error);
-                    status.setText("Sky import failed: " + error.getMessage());
+                    showResult("Sky import failed: " + error.getMessage(), false);
                 }
             }
             return;
@@ -392,10 +400,10 @@ public final class SetupActivity extends Activity {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
                     String name = ContentImporter.importContent(this, data.getData(), requestCode == IMPORT_MOD);
-                    status.setText("Imported: " + name + "\nRestart the game to load the new content.");
+                    showResult("Imported: " + name + ". Restart the game to load the new content.", true);
                 } catch (Exception error) {
                     Log.e(TAG, "Content import failed", error);
-                    status.setText("Import failed: " + error.getMessage());
+                    showResult("Import failed: " + error.getMessage(), false);
                 }
             }
             return;
@@ -403,11 +411,11 @@ public final class SetupActivity extends Activity {
         if (requestCode == IMPORT_SAVES) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
-                    status.setText(SaveArchive.importZip(this, data.getData()));
+                    showResult(SaveArchive.importZip(this, data.getData()), true);
                     Diagnostics.record(this, "launcher.save_archive_imported");
                 } catch (Exception error) {
                     Log.e(TAG, "Save archive import failed", error);
-                    status.setText("Save import failed: " + error.getMessage());
+                    showResult("Save import failed: " + error.getMessage(), false);
                 }
             }
             return;
@@ -415,11 +423,11 @@ public final class SetupActivity extends Activity {
         if (requestCode == EXPORT_SAVES) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
-                    status.setText(SaveArchive.exportZip(this, data.getData()));
+                    showResult(SaveArchive.exportZip(this, data.getData()), true);
                     Diagnostics.record(this, "launcher.save_archive_exported");
                 } catch (Exception error) {
                     Log.e(TAG, "Save archive export failed", error);
-                    status.setText("Save export failed: " + error.getMessage());
+                    showResult("Save export failed: " + error.getMessage(), false);
                 }
             }
             return;
@@ -436,10 +444,10 @@ public final class SetupActivity extends Activity {
         }
         try {
             importSelected(data.getData());
-            status.setText("Game imported and validated. Ready to play.");
+            showResult("Game imported and validated. Ready to play.", true);
         } catch (Exception error) {
             Log.e(TAG, "Game import failed", error);
-            status.setText("Import failed: " + error.getMessage() + "\nYour previous game and saves were kept.");
+            showResult("Import failed: " + error.getMessage() + ". Your previous game and saves were kept.", false);
         }
         refreshState();
     }
