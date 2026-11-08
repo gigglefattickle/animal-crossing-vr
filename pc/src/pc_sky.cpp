@@ -127,7 +127,7 @@ void main() {
 
     // The imported DS cloud map is retained for future palette reconstruction,
     // but its current tile decode produces smeared patches in the Quest view.
-    // Use the stable rounded cloud banks for every sky mode; imported stars and
+    // Use the stable flat cloud strips for every sky mode; imported stars and
     // the moon remain enabled above.
 
     // Periodic longitude, bounded drift (same time for both eyes), no cube seams.
@@ -165,7 +165,7 @@ void main() {
             }
         }
     }
-    /* Clouds use the rounded procedural layer until the imported NDS cloud
+    /* Clouds use the flat procedural layer until the imported NDS cloud
      * tile attributes and palette timing are fully reconstructed. */
     color = vec4(sky,1.0);
 }
@@ -441,11 +441,27 @@ extern "C" void pc_sky_set_environment(int enabled, float time, float cloudiness
 }
 
 static void update_environment_active(void) {
-    // Freeze the last live answer while paused; bypassing age checks outright
-    // would revive an outdoor sky that already expired on a scene transition.
-    if (!g_pc_paused)
-        environment_active = have_environment && outdoors &&
-            (uint32_t)(pc_frame_counter-environment_frame)<=1u;
+    /*
+     * The game-side outdoor/weather callback is not wired in every build
+     * configuration yet. Do not leave the renderer permanently disabled
+     * while waiting for it: provide a safe daytime procedural fallback.
+     *
+     * Once the game supplies a real environment, its outdoor flag and clock
+     * take priority. The fallback is intentionally limited to the period
+     * before the first game environment update, and the skybox user setting
+     * remains the master enable/disable switch.
+     */
+    if (!g_pc_paused) {
+        if (!have_environment) {
+            outdoors = 1;
+            seconds = (float)((pc_frame_counter / 60u) % 86400u);
+            overcast = 0.0f;
+            environment_active = 1;
+        } else {
+            environment_active = outdoors &&
+                (uint32_t)(pc_frame_counter-environment_frame)<=1u;
+        }
+    }
 }
 
 extern "C" void pc_sky_begin_pass(void) {
