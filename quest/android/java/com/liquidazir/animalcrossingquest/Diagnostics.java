@@ -18,7 +18,7 @@ import java.util.Locale;
 /** App-private diagnostic breadcrumbs; never records disc or save contents. */
 public final class Diagnostics {
     private static final String TAG = "ACQuestDiag";
-    private static final long MAX_LOG_BYTES = 128 * 1024;
+    private static final long MAX_LOG_BYTES = 512 * 1024;
     private static volatile boolean crashHandlerInstalled;
 
     private Diagnostics() {}
@@ -135,6 +135,57 @@ public final class Diagnostics {
                     .append(error.getMessage()).append('\n');
         }
         return result.toString();
+    }
+
+
+    /** Export-time process snapshot. Thread stacks are explicitly not represented as crash-time stacks. */
+    public static String readRuntimeSnapshot(Context context) {
+        StringBuilder out = new StringBuilder();
+        out.append("=== Runtime snapshot at export time ===\n");
+        out.append("Wall clock: ").append(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US).format(new Date())).append('\n');
+        out.append("Elapsed realtime ms: ").append(android.os.SystemClock.elapsedRealtime()).append('\n');
+        out.append("PID: ").append(Process.myPid()).append(" UID: ").append(Process.myUid()).append('\n');
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            out.append("System memory available bytes: ").append(mi.availMem).append('\n');
+            out.append("System memory total bytes: ").append(mi.totalMem).append('\n');
+            out.append("System low-memory: ").append(mi.lowMemory).append('\n');
+            android.os.Debug.MemoryInfo[] mem = am.getProcessMemoryInfo(new int[] { Process.myPid() });
+            if (mem != null && mem.length > 0) {
+                out.append("App PSS KB: ").append(mem[0].getTotalPss()).append('\n');
+                out.append("App private dirty KB: ").append(mem[0].getTotalPrivateDirty()).append('\n');
+                out.append("App shared dirty KB: ").append(mem[0].getTotalSharedDirty()).append('\n');
+            }
+        } catch (Exception error) {
+            out.append("Memory snapshot unavailable: ").append(error.getClass().getSimpleName()).append(": ").append(error.getMessage()).append('\n');
+        }
+        Runtime runtime = Runtime.getRuntime();
+        out.append("JVM max/total/free heap bytes: ").append(runtime.maxMemory()).append("/")
+                .append(runtime.totalMemory()).append("/").append(runtime.freeMemory()).append('\n');
+        try {
+            File files = context.getFilesDir();
+            out.append("App storage usable/total bytes: ").append(files.getUsableSpace()).append("/")
+                    .append(files.getTotalSpace()).append('\n');
+        } catch (Exception ignored) { }
+        out.append("=== Java thread stacks at export time (not crash-time) ===\n");
+        try {
+            java.util.Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
+            out.append("Thread count: ").append(stacks.size()).append('\n');
+            for (java.util.Map.Entry<Thread, StackTraceElement[]> entry : stacks.entrySet()) {
+                Thread thread = entry.getKey();
+                out.append("\nTHREAD ").append(thread.getName()).append(" id=").append(thread.getId())
+                        .append(" state=").append(thread.getState()).append(" daemon=").append(thread.isDaemon()).append('\n');
+                StackTraceElement[] frames = entry.getValue();
+                int count = Math.min(frames.length, 80);
+                for (int i = 0; i < count; i++) out.append("  at ").append(frames[i]).append('\n');
+                if (frames.length > count) out.append("  ... ").append(frames.length - count).append(" more frames\n");
+            }
+        } catch (Exception error) {
+            out.append("Thread snapshot failed: ").append(error.getClass().getSimpleName()).append('\n');
+        }
+        return out.toString();
     }
 
     public static String readEvents(Context context) {
