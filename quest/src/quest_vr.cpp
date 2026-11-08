@@ -420,6 +420,35 @@ float pc_vr_head_yaw_offset_bang(void) {
          * (65536.0f / (float)(2.0 * PC_PI));
 }
 
+/* Feed the original villager skeleton with the current HMD and grip poses.
+ * Grip targets are transformed back into game-world units; they never alter
+ * actor/collision state. */
+int pc_vr_player_head_angles(short* pitch, short* yaw) {
+    if (!pitch || !yaw || !pc_vr_tool_input_allowed()) return 0;
+    const float scale = 32768.0f / (float)PC_PI;
+    float p = atan2f(-s_vr.head_pose[1][2],
+                     hypotf(s_vr.head_pose[0][2], s_vr.head_pose[2][2]));
+    float y = atan2f(s_vr.head_pose[0][2], s_vr.head_pose[2][2]);
+    if (p > 1.15f) p = 1.15f;
+    if (p < -1.15f) p = -1.15f;
+    if (y > 1.45f) y = 1.45f;
+    if (y < -1.45f) y = -1.45f;
+    *pitch = (short)lrintf(p * scale);
+    *yaw = (short)lrintf(y * scale);
+    return 1;
+}
+
+int pc_vr_player_hand_target(int hand, float out[3]) {
+    if (!out || hand < 0 || hand > 1 || !pc_vr_tool_input_allowed() ||
+        !s_vr.empty_hand_valid[hand]) return 0;
+    M34 world;
+    m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world);
+    out[0] = world[0][3];
+    out[1] = world[1][3];
+    out[2] = world[2][3];
+    return isfinite(out[0]) && isfinite(out[1]) && isfinite(out[2]);
+}
+
 void pc_vr_set_empty_hands_available(int available) {
     s_vr.empty_hands_available = available != 0;
     s_vr.empty_hands_stamp = pc_frame_counter;
