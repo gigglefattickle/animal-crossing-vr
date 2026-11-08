@@ -235,10 +235,10 @@ static void nds_color_rgba(const unsigned char* palette, int index, unsigned cha
 
 static unsigned char* decode_sky_strip(const unsigned char* ncg,const unsigned char* ncl,
                                        const unsigned char* nsc) {
-    const int width=512,height=64;
+    const int width=512,height=128;
     unsigned char* rgba=(unsigned char*)calloc((size_t)width*height,4);
     if (!rgba) return NULL;
-    for (int ty=0;ty<8;ty++) for (int tx=0;tx<64;tx++) {
+    for (int ty=0;ty<16;ty++) for (int tx=0;tx<64;tx++) {
         int tile=nsc[ty*64+tx];
         if (tile>=512) continue;
         const unsigned char* src=ncg+tile*32;
@@ -332,7 +332,7 @@ static int load_wild_world_assets(void) {
         unsigned char* stars=decode_star_map(star_ncg,star_ncl,star_nsc);
         unsigned char* clouds=decode_cloud_map(acww_cloud_ncg,acww_cloud_f0_palette,acww_cloud_f0_map,7);
         if (sky && stars && clouds) {
-            acww_sky_texture=upload_rgba_texture(512,64,sky);
+            acww_sky_texture=upload_rgba_texture(512,128,sky);
             acww_star_texture=upload_rgba_texture(256,256,stars);
             acww_cloud_texture=upload_rgba_texture(512,128,clouds);
             acww_assets_ready=acww_sky_texture && acww_star_texture && acww_cloud_texture;
