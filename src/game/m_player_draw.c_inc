@@ -123,19 +123,19 @@ static void Player_actor_vr_adjust_arm(PLAYER_ACTOR* player, int joint_no, s_xyz
     const float elbow_bend = acosf(elbow_cos);
 
     if (joint_no == mPlayer_JOINT_LARM_BASE || joint_no == mPlayer_JOINT_RARM_BASE) {
-        rot->y = (s16)(rot->y + Player_actor_vr_angle(sweep * 0.85f));
-        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elevation * 0.85f));
+        rot->y = (s16)(rot->y + Player_actor_vr_angle(sweep * 0.95f));
+        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elevation * 0.95f));
     } else if (joint_no == mPlayer_JOINT_LARM1 || joint_no == mPlayer_JOINT_RARM1) {
-        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elbow_bend * 0.65f));
+        rot->z = (s16)(rot->z + Player_actor_vr_angle(side * elbow_bend * 0.82f));
     } else if (joint_no == mPlayer_JOINT_LARM2 || joint_no == mPlayer_JOINT_RARM2) {
         short pitch, yaw, roll;
         if (pc_vr_player_hand_angles(hand, player->actor_class.shape_info.rotation.y,
                                      &pitch, &yaw, &roll)) {
             /* Keep the stock wrist pose as the base and blend in controller
              * orientation gently to avoid a rigid, over-rotated hand. */
-            rot->x = (s16)(rot->x + (s16)(pitch * 0.32f));
-            rot->y = (s16)(rot->y + (s16)(yaw * 0.28f));
-            rot->z = (s16)(rot->z + (s16)(roll * 0.32f));
+            rot->x = (s16)(rot->x + (s16)(pitch * 0.60f));
+            rot->y = (s16)(rot->y + (s16)(yaw * 0.55f));
+            rot->z = (s16)(rot->z + (s16)(roll * 0.60f));
         }
     }
 }
