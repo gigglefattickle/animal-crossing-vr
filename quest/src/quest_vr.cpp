@@ -511,12 +511,38 @@ int pc_vr_player_head_angles(short* pitch, short* yaw) {
 int pc_vr_player_hand_target(int hand, float out[3]) {
     if (!out || hand < 0 || hand > 1 || !pcvr_player_tracking_allowed() ||
         !s_vr.have_anchor || !s_vr.empty_hand_valid[hand]) return 0;
+
+    /* Convert the live grip pose to game units before smoothing. The player
+     * skeleton asks for each arm target more than once in a frame, so stamp
+     * the filter and advance it only once per game frame. This removes small
+     * controller-position jitter without adding frame-rate-dependent lag. */
+    static float smoothed[2][3];
+    static u32 smoothed_frame[2] = {(u32)-1, (u32)-1};
+    static int smoothed_valid[2] = {0, 0};
     M34 world;
     m34_mul(s_vr.world_from_seated, s_vr.empty_hand_pose[hand], world);
-    out[0] = world[0][3];
-    out[1] = world[1][3];
-    out[2] = world[2][3];
-    return isfinite(out[0]) && isfinite(out[1]) && isfinite(out[2]);
+    float target[3] = {world[0][3], world[1][3], world[2][3]};
+    for (int i = 0; i < 3; ++i) if (!isfinite(target[i])) return 0;
+
+    if (smoothed_frame[hand] != pc_frame_counter) {
+        float dx = target[0] - smoothed[hand][0];
+        float dy = target[1] - smoothed[hand][1];
+        float dz = target[2] - smoothed[hand][2];
+        float distance2 = dx * dx + dy * dy + dz * dz;
+        /* Snap on first tracking sample or a large discontinuity (recenter,
+         * reacquire, or controller hand-off); otherwise use a light filter. */
+        if (!smoothed_valid[hand] || distance2 > 10000.0f) {
+            for (int i = 0; i < 3; ++i) smoothed[hand][i] = target[i];
+            smoothed_valid[hand] = 1;
+        } else {
+            const float follow = 0.65f;
+            for (int i = 0; i < 3; ++i)
+                smoothed[hand][i] += (target[i] - smoothed[hand][i]) * follow;
+        }
+        smoothed_frame[hand] = pc_frame_counter;
+    }
+    for (int i = 0; i < 3; ++i) out[i] = smoothed[hand][i];
+    return 1;
 }
 
 void pc_vr_set_empty_hands_available(int available) {
