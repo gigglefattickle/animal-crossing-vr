@@ -1045,6 +1045,9 @@ extern "C" int pc_vr_player_head_angles(short* pitch, short* yaw) {
 extern "C" int pc_vr_player_hand_target(int hand, float out[3]) {
     (void)hand; (void)out; return 0;
 }
+extern "C" int pc_vr_player_hand_angles(int hand, short player_yaw, short* pitch, short* yaw, short* roll) {
+    (void)hand; (void)player_yaw; (void)pitch; (void)yaw; (void)roll; return 0;
+}
 
 /* Flat-scene: frame-stamped like the FP active flag so scene teardown can
  * never leave it latched (m_play stamps it every play frame). */
