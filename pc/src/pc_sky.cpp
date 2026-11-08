@@ -49,14 +49,17 @@ float oval(vec2 p, vec2 center, vec2 size) {
 }
 // Wild World-inspired cloud banks: flatter, longer, soft-edged layers.
 float cloud(vec2 p, float seed) {
-    p.x += 0.012*sin(p.y*5.0+seed*8.0);
-    p.y += 0.010*sin(p.x*7.0+seed*13.0);
-    float d = oval(p, vec2(0.0,-0.06), vec2(0.82,0.20));
-    d = min(d, oval(p, vec2(-0.48,0.04), vec2(0.40,0.24)));
-    d = min(d, oval(p, vec2(-0.12,0.13+0.035*seed), vec2(0.46,0.29)));
-    d = min(d, oval(p, vec2(0.34,0.07), vec2(0.48,0.23)));
-    d = min(d, oval(p, vec2(0.72,-0.02), vec2(0.30,0.17)));
-    return 1.0-smoothstep(0.94,1.08,d);
+    // Train-ride-inspired cloud banks: a calm flat underside with distinct,
+    // rounded upper puffs. Keep the silhouette soft without blurring it away.
+    p.x += 0.008*sin(p.y*4.0+seed*8.0);
+    p.y += 0.006*sin(p.x*6.0+seed*13.0);
+    float d = oval(p, vec2(0.0,-0.12), vec2(0.86,0.17));
+    d = min(d, oval(p, vec2(-0.58,-0.005), vec2(0.31,0.19)));
+    d = min(d, oval(p, vec2(-0.30,0.105), vec2(0.30,0.27)));
+    d = min(d, oval(p, vec2(0.02,0.16+0.025*seed), vec2(0.34,0.31)));
+    d = min(d, oval(p, vec2(0.37,0.105), vec2(0.32,0.25)));
+    d = min(d, oval(p, vec2(0.66,0.005), vec2(0.31,0.18)));
+    return 1.0-smoothstep(0.91,1.035,d);
 }
 void main() {
     vec3 eye = vec3((screen + projection.zw)/projection.xy, -1.0);
@@ -124,21 +127,13 @@ void main() {
     float land = (1.0-smoothstep(ridge-0.002,ridge+0.002,h))*smoothstep(-0.012,0.0,h)*islands;
     sky = mix(sky,horizon*0.76,land*(1.0-wet*0.5));
 
-    /* Wild World cloud background is a 32x16 tile map (256x128 px).
-     * The old 64x16 interpretation duplicated each row and created the
-     * long stretched stripes reported on Quest. Reconstructed below using
-     * the original 8bpp tile atlas and palette bank. */
-    if (acww_assets != 0 && h > 0.035 && h < 0.86) {
-        float drift = environment.x / 86400.0;
-        vec2 cloudUV = vec2(fract(azimuth + drift * 0.035),
-                            1.0 - clamp((h - 0.035) / 0.82, 0.0, 1.0));
-        vec4 originalCloud = texture(acww_cloud_layer, cloudUV);
-        float cloudAlpha = originalCloud.a * (1.0 - wet * 0.28);
-        sky = mix(sky, originalCloud.rgb, cloudAlpha);
-    }
+    // The imported DS cloud map is retained for future palette reconstruction,
+    // but its current tile decode produces smeared patches in the Quest view.
+    // Use the stable rounded cloud banks for every sky mode; imported stars and
+    // the moon remain enabled above.
 
     // Periodic longitude, bounded drift (same time for both eyes), no cube seams.
-    if (h > 0.015 && h < 0.87 && acww_assets == 0) {
+    if (h > 0.015 && h < 0.87) {
         float latitude = asin(h);
         for (int row=0; row<3; ++row) {
             float r = float(row);
@@ -172,10 +167,8 @@ void main() {
             }
         }
     }
-    /* The first imported cloud-map pass produced stretched tile bands on
-     * Quest. Keep the original Wild World star/moon art, but render the
-     * cloud banks with the stable procedural painterly layer until the NDS
-     * screen-map attributes are fully reconstructed. */
+    /* Clouds use the rounded procedural layer until the imported NDS cloud
+     * tile attributes and palette timing are fully reconstructed. */
     color = vec4(sky,1.0);
 }
 )GLSL";
