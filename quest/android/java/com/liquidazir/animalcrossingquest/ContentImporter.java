@@ -30,6 +30,8 @@ final class ContentImporter {
         if (modPackage && !lower.endsWith(".zip"))
             throw new IllegalArgumentException("Mod packages must be ZIP files containing supported DDS texture replacements.");
         if (!modPackage && lower.endsWith(".dds")) {
+            if (!isTextureName(new File(name).getName()))
+                throw new IllegalArgumentException("Texture filename must use Dolphin's tex1_...dds naming format.");
             File folder = createPackFolder(context, false, name);
             File destination = new File(folder, new File(name).getName());
             try (InputStream input = context.getContentResolver().openInputStream(uri);
