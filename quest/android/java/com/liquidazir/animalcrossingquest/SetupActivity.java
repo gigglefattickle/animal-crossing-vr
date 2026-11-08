@@ -77,61 +77,86 @@ public final class SetupActivity extends Activity {
     private void render() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER);
-        root.setPadding(36, 28, 36, 28);
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.setPadding(28, 24, 28, 24);
+        root.setBackgroundColor(android.graphics.Color.rgb(18, 20, 25));
 
         TextView heading = new TextView(this);
         heading.setText("ANIMAL CROSSING");
-        heading.setTextSize(28);
+        heading.setTextColor(android.graphics.Color.WHITE);
+        heading.setTextSize(24);
+        heading.setLetterSpacing(0.12f);
         heading.setGravity(Gravity.CENTER);
-        root.addView(heading, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(heading, new LinearLayout.LayoutParams(-1, 64));
 
+        TextView subtitle = new TextView(this);
+        subtitle.setText("GAME LIBRARY");
+        subtitle.setTextColor(android.graphics.Color.LTGRAY);
+        subtitle.setTextSize(12);
+        subtitle.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(-1, 42);
+        subtitleParams.topMargin = 14;
+        root.addView(subtitle, subtitleParams);
+
+        LinearLayout gameCard = new LinearLayout(this);
+        gameCard.setOrientation(LinearLayout.VERTICAL);
+        gameCard.setPadding(22, 22, 22, 22);
+        gameCard.setBackground(makeCardBackground());
+        TextView gameTitle = new TextView(this);
+        gameTitle.setText("Animal Crossing");
+        gameTitle.setTextColor(android.graphics.Color.WHITE);
+        gameTitle.setTextSize(22);
+        gameCard.addView(gameTitle);
         status = new TextView(this);
-        status.setTextSize(18);
-        status.setGravity(Gravity.CENTER);
+        status.setTextColor(android.graphics.Color.LTGRAY);
+        status.setTextSize(14);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
-        statusParams.topMargin = 20;
-        root.addView(status, statusParams);
-
-        Button chooseButton = new Button(this);
-        chooseButton.setText("Choose Game File");
-        chooseButton.setOnClickListener(v -> chooseGame());
-        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(-1, -2);
-        buttonParams.topMargin = 24;
-        root.addView(chooseButton, buttonParams);
+        statusParams.topMargin = 10;
+        gameCard.addView(status, statusParams);
 
         playButton = new Button(this);
-        playButton.setText("Play");
+        playButton.setText("PLAY");
         playButton.setOnClickListener(v -> launchGame());
-        root.addView(playButton, buttonParams);
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, -2);
+        playParams.topMargin = 22;
+        gameCard.addView(playButton, playParams);
+        root.addView(gameCard, new LinearLayout.LayoutParams(-1, -2));
 
-        Button textureButton = new Button(this);
-        textureButton.setText("Import Textures");
-        textureButton.setOnClickListener(v -> chooseContent(IMPORT_TEXTURES, "Import texture files or a ZIP texture pack"));
-        root.addView(textureButton, buttonParams);
+        Button addGame = new Button(this);
+        addGame.setText("Add / Change Game File");
+        addGame.setOnClickListener(v -> chooseGame());
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, -2);
+        actionParams.topMargin = 18;
+        root.addView(addGame, actionParams);
 
-        Button modButton = new Button(this);
-        modButton.setText("Import Mod ZIP");
-        modButton.setOnClickListener(v -> chooseContent(IMPORT_MOD, "Import a ZIP mod package"));
-        root.addView(modButton, buttonParams);
-
-        Button skyButton = new Button(this);
-        skyButton.setText("Import Wild World Sky ZIP");
-        skyButton.setOnClickListener(v -> chooseSkybox());
-        root.addView(skyButton, buttonParams);
-
-        Button graphicsButton = new Button(this);
-        graphicsButton.setText("Graphics Settings");
-        graphicsButton.setOnClickListener(v -> showGraphicsSettings());
-        root.addView(graphicsButton, buttonParams);
-
-        Button diagnosticsButton = new Button(this);
-        diagnosticsButton.setText("Export Diagnostics");
-        diagnosticsButton.setOnClickListener(v -> exportDiagnostics());
-        root.addView(diagnosticsButton, buttonParams);
+        Button options = new Button(this);
+        options.setText("OPTIONS");
+        options.setOnClickListener(v -> showOptions());
+        root.addView(options, actionParams);
 
         setContentView(root);
         refreshState();
+    }
+
+    private android.graphics.drawable.Drawable makeCardBackground() {
+        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+        shape.setColor(android.graphics.Color.rgb(31, 35, 43));
+        shape.setCornerRadius(22.0f);
+        shape.setStroke(1, android.graphics.Color.rgb(65, 72, 84));
+        return shape;
+    }
+
+    private void showOptions() {
+        String[] options = {"VR / Graphics Settings", "Import Wild World Sky ZIP",
+                "Import Textures", "Import Mod ZIP", "Export Diagnostics"};
+        new AlertDialog.Builder(this).setTitle("Options")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) showGraphicsSettings();
+                else if (which == 1) chooseSkybox();
+                else if (which == 2) chooseContent(IMPORT_TEXTURES, "Import texture files or a ZIP texture pack");
+                else if (which == 3) chooseContent(IMPORT_MOD, "Import a ZIP mod package");
+                else exportDiagnostics();
+            }).show();
     }
 
     private void refreshState() {
