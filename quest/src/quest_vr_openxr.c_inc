@@ -334,7 +334,9 @@ extern "C" void pc_vr_frame_begin(void) {
     pc_vr_swing_update(&s_vr.swing, SDL_GetTicks(), speed,
         s_vr.hand_valid && pc_vr_tool_input_allowed() && g_pc_settings.vr_motion_swing &&
         pc_fp_swingable_equipped() && !pcvr_digital(s_vr.act_l));
-    if (g_pc_settings.vr_empty_hands) for (int hand_index = 0; hand_index < 2; ++hand_index) {
+    /* Sample both controller grips for the player skeleton even when the optional
+     * floating hand markers are disabled. */
+    for (int hand_index = 0; hand_index < 2; ++hand_index) {
         s_vr.empty_hand_valid[hand_index] = pcvr_locate_action(s_vr.act_empty_hand[hand_index],
             s_vr.grip_space[hand_index], s_vr.empty_hand_pose[hand_index]);
         s_vr.empty_hand_seen[hand_index] |= s_vr.empty_hand_valid[hand_index];
