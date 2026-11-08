@@ -7,6 +7,7 @@
 #include <cstring>
 #include <algorithm>
 #include <time.h>
+extern "C" void quest_vr_diag(const char* event);
 
 double quest_xr_clock_ms() {
     struct timespec now;
@@ -58,12 +59,14 @@ bool QuestXrRuntime::check(XrResult result, const char* operation) const {
 }
 
 bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
+    quest_vr_diag("openxr.init_entered");
     if (!vm || !activity) { quest_xr_log("Missing Android VM/activity"); return false; }
     quest_xr_log("Startup ABI: pointer=%u bits; GLES=%s", unsigned(sizeof(void*) * 8),
                  (const char*)glGetString(GL_VERSION));
     PFN_xrInitializeLoaderKHR initialize_loader = nullptr;
     xrGetInstanceProcAddr(XR_NULL_HANDLE, "xrInitializeLoaderKHR",
                          reinterpret_cast<PFN_xrVoidFunction*>(&initialize_loader));
+    quest_vr_diag("openxr.loader_function_checked");
     if (initialize_loader) {
         XrLoaderInitInfoAndroidKHR info = {XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR};
         info.applicationVM = vm;
@@ -71,6 +74,7 @@ bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
         if (!check(initialize_loader(reinterpret_cast<XrLoaderInitInfoBaseHeaderKHR*>(&info)),
                    "xrInitializeLoaderKHR")) return false;
     }
+    quest_vr_diag("openxr.loader_initialized");
     uint32_t count = 0;
     if (!check(xrEnumerateInstanceExtensionProperties(nullptr, 0, &count, nullptr),
                "xrEnumerateInstanceExtensionProperties")) return false;
@@ -84,6 +88,7 @@ bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
         for (const auto& p : properties) found |= !strcmp(p.extensionName, required);
         if (!found) { quest_xr_log("Required extension absent: %s", required); return false; }
     }
+    quest_vr_diag("openxr.extensions_verified");
     XrInstanceCreateInfoAndroidKHR android = {XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
     android.applicationVM = vm; android.applicationActivity = activity;
     XrInstanceCreateInfo create = {XR_TYPE_INSTANCE_CREATE_INFO};
@@ -95,7 +100,9 @@ bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
     create.applicationInfo.apiVersion = XR_MAKE_VERSION(1, 0, 0);
     create.enabledExtensionCount = 2;
     create.enabledExtensionNames = extensions;
+    quest_vr_diag("openxr.before_create_instance");
     if (!check(xrCreateInstance(&create, &instance), "xrCreateInstance")) return false;
+    quest_vr_diag("openxr.instance_created");
     XrInstanceProperties runtime = {XR_TYPE_INSTANCE_PROPERTIES};
     xrGetInstanceProperties(instance, &runtime);
     quest_xr_log("Runtime: %s %u.%u.%u", runtime.runtimeName,
@@ -105,6 +112,7 @@ bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
     XrSystemGetInfo system_info = {XR_TYPE_SYSTEM_GET_INFO};
     system_info.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
     if (!check(xrGetSystem(instance, &system_info, &system), "xrGetSystem")) return false;
+    quest_vr_diag("openxr.system_found");
     PFN_xrGetOpenGLESGraphicsRequirementsKHR requirements_fn = nullptr;
     if (!check(xrGetInstanceProcAddr(instance, "xrGetOpenGLESGraphicsRequirementsKHR",
                  reinterpret_cast<PFN_xrVoidFunction*>(&requirements_fn)), "get GLES requirements function")) return false;
@@ -130,7 +138,9 @@ bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
     binding.display = display; binding.config = config; binding.context = context;
     XrSessionCreateInfo session_info = {XR_TYPE_SESSION_CREATE_INFO};
     session_info.next = &binding; session_info.systemId = system;
+    quest_vr_diag("openxr.before_create_session");
     if (!check(xrCreateSession(instance, &session_info, &session), "xrCreateSession")) return false;
+    quest_vr_diag("openxr.session_created");
     XrReferenceSpaceCreateInfo space = {XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
     space.poseInReferenceSpace.orientation.w = 1;
     space.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
@@ -205,6 +215,7 @@ bool QuestXrRuntime::init(JavaVM* vm, jobject activity) {
         quest_xr_log("Eye %d swapchain: %dx%d images=%u", eye, target.width, target.height, count);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0); glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    quest_vr_diag("openxr.swapchains_created");
     quest_xr_log("SESSION_CREATED pointer_bits=%u", unsigned(sizeof(void*) * 8));
     return true;
 }
