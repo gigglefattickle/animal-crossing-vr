@@ -341,6 +341,31 @@ public final class SetupActivity extends Activity {
         startActivityForResult(intent, EXPORT_DIAGNOSTICS);
     }
 
+
+    private void appendDiagnosticFile(BufferedWriter writer, String name, int maxBytes) throws Exception {
+        File file = new File(getFilesDir(), name);
+        writer.write("--- " + name + " ---");
+        writer.newLine();
+        if (!file.isFile()) {
+            writer.write("(not present)");
+            writer.newLine();
+            return;
+        }
+        int limit = (int)Math.min(file.length(), maxBytes);
+        byte[] bytes = new byte[limit];
+        try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
+            int offset = 0;
+            while (offset < limit) {
+                int count = input.read(bytes, offset, limit - offset);
+                if (count < 0) break;
+                offset += count;
+            }
+            writer.write(new String(bytes, 0, offset, "UTF-8"));
+        }
+        writer.newLine();
+        writer.newLine();
+    }
+
     private void writeDiagnostics(Uri destination) {
         try (OutputStream output = getContentResolver().openOutputStream(destination);
              BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(output, "UTF-8"))) {
@@ -371,13 +396,21 @@ public final class SetupActivity extends Activity {
             writer.newLine();
             writer.write(Diagnostics.readPreviousCrash(this));
             writer.newLine();
+            writer.write("Native fatal-signal capture (registers at fault; not a symbolicated stack):");
+            writer.newLine();
+            appendDiagnosticFile(writer, "native-crash.txt", 16 * 1024);
+            writer.write("Native stdout/stderr logs (bounded app-owned logs):");
+            writer.newLine();
+            appendDiagnosticFile(writer, "quest-stdout.log", 128 * 1024);
+            appendDiagnosticFile(writer, "quest-stderr.log", 128 * 1024);
             writer.write("App event log (most recent activity first in chronological order):");
             writer.newLine();
             writer.write(Diagnostics.readEvents(this));
             writer.newLine();
-            writer.write("Note: This export contains app/device metadata and app-generated breadcrumbs only. " +
-                    "It does not include the disc image, save files, headset account details, or other apps' logs. " +
-                    "Android may provide a previous-process native crash trace; availability depends on OS retention and permissions.");
+            writer.write("Privacy: This export includes app/device metadata, app breadcrumbs, native fault registers, " +
+                    "and this app's own stdout/stderr logs. It does not include the disc image, save files, headset account details, " +
+                    "or other apps' logs. The native register capture is not a symbolicated call stack; Android's historical " +
+                    "tombstone trace may provide function frames when available.");
             writer.newLine();
             writer.flush();
             Diagnostics.record(this, "launcher.diagnostics_exported");
