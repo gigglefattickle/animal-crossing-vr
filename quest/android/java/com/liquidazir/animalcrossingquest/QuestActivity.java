@@ -22,6 +22,7 @@ public class QuestActivity extends SDLActivity {
         return new String[] { "--vr", "--verbose" };
     }
     @Override protected void onCreate(Bundle state) {
+        Diagnostics.installCrashHandler(this);
         Diagnostics.record(this, "quest_activity.onCreate_entered");
         try {
             File root = getFilesDir();
