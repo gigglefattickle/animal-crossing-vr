@@ -175,7 +175,7 @@ public final class SetupActivity extends Activity {
         firstRow.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, 62);
         rowParams.topMargin = 14;
-        addLauncherTile(firstRow, "📂  Load Game", () -> chooseGame(), leafGreen, deepGreen, cream);
+        addLauncherTile(firstRow, "Import ROM", () -> chooseGame(), leafGreen, deepGreen, cream);
         addLauncherTile(firstRow, "✨  Coming Soon", () -> showComingSoon(), leafGreen, deepGreen, cream);
         root.addView(firstRow, rowParams);
 
