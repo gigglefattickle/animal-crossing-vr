@@ -117,35 +117,47 @@ static bool pcvr_input_init(void) {
         {s_vr.act_haptic_r, nullptr, "/user/hand/right/output/haptic"}
     };
     QuestHostVector<XrActionSuggestedBinding> bindings;
+    quest_vr_diag("input.binding_loop_started");
     for (const auto& binding : paths) {
+        quest_vr_diag("input.binding_iteration");
         std::string selected = binding.path;
         if (binding.setting && s_vm && s_activity) {
+            quest_vr_diag("input.binding_before_jni");
             JNIEnv* env = nullptr;
             bool detach = false;
             jint env_status = s_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
             if (env_status == JNI_EDETACHED &&
                 s_vm->AttachCurrentThread(&env, nullptr) == JNI_OK) detach = true;
             if (env && (env_status == JNI_OK || detach)) {
+                quest_vr_diag("input.binding_jni_env_ready");
                 jclass cls = env->GetObjectClass(s_activity);
                 jmethodID method = cls ? env->GetMethodID(cls, "getControllerBinding",
                                                            "(Ljava/lang/String;)Ljava/lang/String;") : nullptr;
+                quest_vr_diag(method ? "input.binding_java_method_found" : "input.binding_java_method_missing");
                 jstring key = method ? env->NewStringUTF(binding.setting) : nullptr;
+                quest_vr_diag(key ? "input.binding_java_key_created" : "input.binding_java_key_failed");
                 jstring value = key ? static_cast<jstring>(env->CallObjectMethod(s_activity, method, key)) : nullptr;
                 if (env->ExceptionCheck()) { env->ExceptionClear(); value = nullptr; }
+                quest_vr_diag(value ? "input.binding_java_value_returned" : "input.binding_java_value_empty");
                 if (value) {
                     const char* chars = env->GetStringUTFChars(value, nullptr);
+                    quest_vr_diag(chars ? "input.binding_utf_chars_acquired" : "input.binding_utf_chars_failed");
                     if (chars && chars[0] == '/') selected.assign(chars);
                     if (chars) env->ReleaseStringUTFChars(value, chars);
                     env->DeleteLocalRef(value);
                 }
                 if (key) env->DeleteLocalRef(key);
                 if (cls) env->DeleteLocalRef(cls);
+            } else {
+                quest_vr_diag("input.binding_jni_env_failed");
             }
             if (detach) s_vm->DetachCurrentThread();
         }
         XrPath path;
         if (!s_xr.check(xrStringToPath(s_xr.instance, selected.c_str(), &path), "controller binding path")) return false;
+        quest_vr_diag("input.binding_path_converted");
         bindings.push_back({binding.action, path});
+        quest_vr_diag("input.binding_added");
     }
     quest_vr_diag("input.binding_paths_created");
     XrInteractionProfileSuggestedBinding suggested = {XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
