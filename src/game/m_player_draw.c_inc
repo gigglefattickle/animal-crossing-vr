@@ -114,8 +114,10 @@ static void Player_actor_vr_adjust_arm(PLAYER_ACTOR* player, int joint_no, s_xyz
      * Solve a two-bone arm with the villager's approximate 18+18 unit reach. */
     const float upper_arm = 18.0f;
     const float forearm = 18.0f;
-    const float max_reach = upper_arm + forearm - 0.5f;
-    if (reach > max_reach) reach = max_reach;
+    /* Do not clamp to the villager's nominal arm length. Past full extension
+     * the elbow simply straightens, while the shoulder keeps aiming at the
+     * controller. This deliberately allows a stretched-looking reach rather
+     * than having the hands stop following when the player reaches outward. */
     if (reach < 2.0f) reach = 2.0f;
     float elbow_cos = (reach * reach - upper_arm * upper_arm - forearm * forearm) /
                       (2.0f * upper_arm * forearm);
