@@ -8166,7 +8166,6 @@ static void mTG_move_func(Submenu* submenu, mSM_MenuInfo_c* menu_info) {
                     quest_trigger_hold_frames = 0.0f;
                 }
             }
-        }
 
         if (quest_drag_candidate && trigger_down) {
             f32 dt = gamePT->graph->dt_num_60fps_frames;
