@@ -55,17 +55,18 @@ static int Player_actor_draw_Before_FirstPerson(GAME* game, cKF_SkeletonInfo_R_c
     return keep_chain;
 }
 
-/* In tracked VR, keep the original villager skeleton and its animation so
- * the player can see their torso, legs and animated arms. The camera sits at
- * eye height inside the head, so suppress only the head joint's surface to
- * avoid rendering the inside of the face over the stereo view. The skeleton
- * walk and all After callbacks still run, preserving hand/tool anchors,
- * footsteps, effects and the original gameplay/collision state. */
+/* In tracked first-person VR, render only the two animated arms and hands.
+ * Hide the head, torso, legs and tail so the player sees their own controller-
+ * driven arms rather than looking down at a full villager body. The complete
+ * skeleton walk and After callbacks still run: this preserves the joint matrix
+ * chain, controller IK, tool anchors, footsteps/effects and gameplay state.
+ * The arm joints are LARM_BASE through HAND; all other meshes are suppressed
+ * without changing their transforms or the original leg animation data. */
 static int Player_actor_draw_Before_FirstPersonVR(GAME* game, cKF_SkeletonInfo_R_c* kf, int joint_no, Gfx** gfx_pp,
                                                   u8* work_flag, void* arg, s_xyz* rot, xyz_t* pos) {
     int keep_chain = Player_actor_draw_Before(game, kf, joint_no, gfx_pp, work_flag, arg, rot, pos);
 
-    if (joint_no == 24) { /* mPlayer head joint; body remains fully animated. */
+    if (joint_no < mPlayer_JOINT_LARM_BASE || joint_no > mPlayer_JOINT_HAND) {
         *gfx_pp = NULL;
     }
     return keep_chain;
