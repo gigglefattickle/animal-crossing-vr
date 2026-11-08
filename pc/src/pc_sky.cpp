@@ -1,5 +1,5 @@
 /* A direction-only sky: no eye translation, finite dome, or stereo disparity.
- * Procedural rounded clouds keep the low-detail, painted look of the village.
+ * Flat horizontal clouds keep the low-detail, painted look of the village.
  * Embedded shaders keep the executable self-contained and rollback simple. */
 #include "pc_sky.h"
 #include "pc_settings.h"
@@ -47,19 +47,17 @@ float hash(float n) { return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
 float oval(vec2 p, vec2 center, vec2 size) {
     return length((p-center)/size);
 }
-// Wild World-inspired cloud banks: flatter, longer, soft-edged layers.
+// Flat Wild World-style cloud strips: thin horizontal bands, not puffs.
 float cloud(vec2 p, float seed) {
-    // Train-ride-inspired cloud banks: a calm flat underside with distinct,
-    // rounded upper puffs. Keep the silhouette soft without blurring it away.
-    p.x += 0.008*sin(p.y*4.0+seed*8.0);
-    p.y += 0.006*sin(p.x*6.0+seed*13.0);
-    float d = oval(p, vec2(0.0,-0.12), vec2(0.86,0.17));
-    d = min(d, oval(p, vec2(-0.58,-0.005), vec2(0.31,0.19)));
-    d = min(d, oval(p, vec2(-0.30,0.105), vec2(0.30,0.27)));
-    d = min(d, oval(p, vec2(0.02,0.16+0.025*seed), vec2(0.34,0.31)));
-    d = min(d, oval(p, vec2(0.37,0.105), vec2(0.32,0.25)));
-    d = min(d, oval(p, vec2(0.66,0.005), vec2(0.31,0.18)));
-    return 1.0-smoothstep(0.91,1.035,d);
+    // Keep the cloud face level like the user's skybox sketch. Only a tiny
+    // horizontal ripple prevents a mechanically perfect computer line.
+    float centerY = 0.015*sin(p.x*2.2+seed*6.28318);
+    float thickness = 0.105 + 0.012*seed;
+    float vertical = 1.0-smoothstep(thickness,thickness+0.035,
+                                    abs(p.y-centerY));
+    float horizontal = smoothstep(-1.18,-0.98,p.x)
+                     * (1.0-smoothstep(0.98,1.18,p.x));
+    return vertical*horizontal;
 }
 void main() {
     vec3 eye = vec3((screen + projection.zw)/projection.xy, -1.0);
