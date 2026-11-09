@@ -831,6 +831,12 @@ int pc_gx_draw_call_count = 0;
 /* Draws the deferred run. Must run before any GL call that bypasses the
  * dirty system (viewport, scissor, readpixels, raw texture binds, swap)
  * so the run renders with the state it was built under. */
+/* Close and submit one object's queued geometry without stalling the GPU. */
+void pc_gx_object_boundary(void) {
+    pc_gx_commit_pending_and_flush();
+    pc_gx_draw_pending();
+}
+
 void pc_gx_draw_pending(void) {
     int count = g_gx.pending_verts;
     if (count == 0) return;
