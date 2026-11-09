@@ -155,7 +155,7 @@ int main(int argc,char** argv) {
     CHECK(pc_vr_hands_draw(pose,projection,0),"shutdown permits successful fresh initialization");
     CHECK(hostile.equals(Snapshot()),"first successful draw including VAO initialization restores GL state");
     auto left=pixels(); auto left_depth=depths();
-    CHECK(coverage(left)>4000,"opaque white marker rendered despite hostile incoming state");
+    CHECK(coverage(left)>4000,"opaque mitten rendered despite hostile incoming state");
     CHECK(pc_vr_hands_draw(pose,projection,0),"subsequent draw succeeds");
     CHECK(hostile.equals(Snapshot()),"steady-state draw restores GL state");
     CHECK(pixels()==left,"LEQUAL permits identical redraw without state-dependent color changes");
@@ -164,20 +164,20 @@ int main(int argc,char** argv) {
     CHECK(glGetError()==GL_NO_ERROR,"initialization, drawing and restoration produce no GL errors");
 
     clear(); CHECK(pc_vr_hands_draw(pose,projection,1),"right hand marker draws"); auto right=pixels();
-    int mirror_difference=0; bool alpha_opaque=true, neutral_white=true; float min_depth=1,max_depth=0;
+    int mirror_difference=0; bool alpha_opaque=true, warm_mitten=true; float min_depth=1,max_depth=0;
     for(int y=0;y<H;y++) for(int x=0;x<W;x++) {
         mirror_difference+=hand_pixel(left,x,y)!=hand_pixel(right,W-x-1,y);
         if(hand_pixel(left,x,y)) {
             alpha_opaque=alpha_opaque&&left[(y*W+x)*4+3]==255;
             const int channel=(y*W+x)*4;
-            neutral_white=neutral_white&&left[channel]==left[channel+1]&&left[channel+1]==left[channel+2];
+            warm_mitten=warm_mitten&&(left[channel]>left[channel+1])&&(left[channel+1]>left[channel+2]);
             const float d=left_depth[y*W+x]; if(d<min_depth)min_depth=d; if(d>max_depth)max_depth=d;
         }
     }
     CHECK(mirror_difference<=4,"left and right markers have symmetric silhouettes");
     CHECK(std::fabs(centroid(left)-(W-1)*0.5)<0.5 && std::fabs(centroid(right)-(W-1)*0.5)<0.5,
-          "both markers stay centered on the grip without a side bump");
-    CHECK(neutral_white,"marker lighting remains neutral white without cream tint");
+          "mirrored mitten silhouettes stay balanced around each grip");
+    CHECK(warm_mitten,"hand uses the warm cream color from the demonstration");
     CHECK(alpha_opaque,"marker fragments are fully opaque");
     CHECK(min_depth>gx_depth(-0.35f,0.2f,0.8f)&&max_depth<gx_depth(-0.5f,0.2f,0.8f),
           "hand depths match the GX world using the caller's viewport range");
