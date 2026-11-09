@@ -1,6 +1,7 @@
 #include "ac_ev_soncho.h"
 
 #include "m_common_data.h"
+#include <stdio.h>
 
 typedef struct soncho_event_save_s {
   u16 _00;
@@ -53,8 +54,19 @@ static void aESC_actor_ct(ACTOR* actorx, GAME* game) {
 
     if (soncho_event == NULL) {
       soncho_event = (aESC_event_save_c*)mEv_reserve_save_area(mEv_EVENT_SONCHO_BRIDGE_MAKE, 34);
-      soncho_event->_00 = 0;
-      soncho_event->msg_no = RANDOM(5);
+      if (soncho_event != NULL) {
+        soncho_event->_00 = 0;
+        soncho_event->msg_no = RANDOM(5);
+        printf("[MayorTalk] actor_create event_save_reserved msg_no=%u\\n", (unsigned)soncho_event->msg_no);
+      }
+      else {
+        /* Keep the mayor usable even if the optional dialogue save slot cannot
+         * be allocated. The dialogue path has a zero-index fallback. */
+        printf("[MayorTalk] actor_create event_save_reserve_failed\\n");
+      }
+    }
+    else {
+      printf("[MayorTalk] actor_create event_save_present msg_no=%u\\n", (unsigned)soncho_event->msg_no);
     }
 
     if (Save_Get(bridge).pending) {
