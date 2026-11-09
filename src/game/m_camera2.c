@@ -226,22 +226,28 @@ static void Camera2_SetView(GAME_PLAY* play) {
         camera->perspective.far = 1600.0f;
     } else if (camera->now_main_index != CAMERA2_PROCESS_LOCK) {
         if (pc_view_player != NULL) {
-            f32 dist_from_player =
-                Math3DLength(eye, &pc_view_player->actor_class.world.position);
-            f32 dt = (play->game.graph != NULL)
-                         ? play->game.graph->dt_num_60fps_frames
-                         : 1.0f;
+            xyz_t* player_pos = &pc_view_player->actor_class.world.position;
+            if (player_pos->x == player_pos->x && player_pos->y == player_pos->y &&
+                player_pos->z == player_pos->z &&
+                player_pos->x < 100000.0f && player_pos->x > -100000.0f &&
+                player_pos->y < 100000.0f && player_pos->y > -100000.0f &&
+                player_pos->z < 100000.0f && player_pos->z > -100000.0f) {
+                f32 dist_from_player = Math3DLength(eye, player_pos);
+                f32 dt = (play->game.graph != NULL)
+                             ? play->game.graph->dt_num_60fps_frames
+                             : 1.0f;
 
-            /* A bad frame delta during scene startup must not destabilize
-             * chase_f or feed invalid camera values into the renderer. */
-            if (!(dt > 0.0f) || dt > 4.0f) {
-                dt = 1.0f;
-            }
+                /* A bad frame delta during scene startup must not destabilize
+                 * chase_f or feed invalid camera values into the renderer. */
+                if (!(dt > 0.0f) || dt > 4.0f) {
+                    dt = 1.0f;
+                }
 
-            if (dist_from_player < 540.0f) {
-                chase_f(&camera->perspective.near, 145.0f, 4.0f * dt);
-            } else {
-                chase_f(&camera->perspective.near, 200.0f, 4.0f * dt);
+                if (dist_from_player < 540.0f) {
+                    chase_f(&camera->perspective.near, 145.0f, 4.0f * dt);
+                } else {
+                    chase_f(&camera->perspective.near, 200.0f, 4.0f * dt);
+                }
             }
         }
 
@@ -337,7 +343,9 @@ static void Camera2_SetView(GAME_PLAY* play) {
             }
             pc_fp_last_index = camera->now_main_index;
 
-            pc_fp_frame(play->game.graph->dt_num_60fps_frames);
+            pc_fp_frame((play->game.graph != NULL)
+                            ? play->game.graph->dt_num_60fps_frames
+                            : 1.0f);
             pc_fp_view(fp_pos, fp_eye, fp_at, fp_up);
 
             eye_v.x = fp_eye[0]; eye_v.y = fp_eye[1]; eye_v.z = fp_eye[2];
