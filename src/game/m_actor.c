@@ -358,9 +358,7 @@ static int Actor_visibility_test(ACTOR* actor, xyz_t* camera_pos, f32 camera_w) 
     return res;
 }
 
-extern int Actor_draw_actor_no_culling_check(ACTOR* actor) {
-    return Actor_draw_actor_no_culling_check2(actor, &actor->camera_position, actor->camera_w);
-}
+
 
 extern int Actor_draw_actor_no_culling_check2(ACTOR* actor, xyz_t* camera_pos, f32 camera_w) {
 #ifdef TARGET_PC
