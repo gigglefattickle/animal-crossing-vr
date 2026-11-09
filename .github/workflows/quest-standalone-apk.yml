@@ -120,10 +120,10 @@ jobs:
           python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 16 --no-package
           if ($LASTEXITCODE -ne 0) { throw 'Quest native build failed.' }
 
-          $buildDir = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\\build\\game-arm32'
+          $buildDir = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\build\game-arm32'
           $mainLibraries = @(Get-ChildItem -Path $buildDir -Filter 'libmain.so' -File -Recurse)
           if ($mainLibraries.Count -ne 1) { throw "Expected exactly one libmain.so, found $($mainLibraries.Count)." }
-          $ndkBin = Join-Path $env:ANDROID_HOME 'ndk\\27.3.13750724\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin'
+          $ndkBin = Join-Path $env:ANDROID_HOME 'ndk\27.3.13750724\toolchains\llvm\prebuilt\windows-x86_64\bin'
           $objcopy = Join-Path $ndkBin 'llvm-objcopy.exe'
           $strip = Join-Path $ndkBin 'llvm-strip.exe'
           if (-not (Test-Path $objcopy) -or -not (Test-Path $strip)) { throw 'NDK LLVM symbol tools were not found.' }
