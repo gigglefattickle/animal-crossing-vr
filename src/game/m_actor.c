@@ -376,6 +376,17 @@ extern int Actor_draw_actor_no_culling_check2(ACTOR* actor, xyz_t* camera_pos, f
 
 static void Actor_cull_check(ACTOR* actor) {
 #ifdef TARGET_PC
+    /* Only background scenery is eligible for distance/frustum culling.
+     * Keep gameplay and presentation actors resident and drawable: player,
+     * villagers, item/FG actors (including fish, bugs and interactables),
+     * effects/particles, and control/UI actors. This is deliberately
+     * conservative; scenery visibility is refined separately. */
+    if (actor->part != ACTOR_PART_BG) {
+        actor->state_bitfield |= ACTOR_STATE_NO_CULL;
+        return;
+    }
+#endif
+#ifdef TARGET_PC
     extern int g_pc_full_world;
     if (g_pc_full_world) {
         /* Measure projected actor bounds in full-world mode, but preserve
