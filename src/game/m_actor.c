@@ -324,6 +324,19 @@ extern int Actor_draw_actor_no_culling_check(ACTOR* actor) {
 static int Actor_visibility_test(ACTOR* actor, xyz_t* camera_pos, f32 camera_w) {
     int res = FALSE;
 
+#ifdef TARGET_PC
+    /* Only background scenery is eligible for future visibility culling.
+     * Keep every gameplay-facing actor category resident and drawable:
+     * foreground objects, items (including fish/bugs and interactables),
+     * the player, villagers, effects/particles, and control actors.
+     *
+     * Inventory and menu rendering is handled by separate UI passes and
+     * never enters this world-actor culling path. */
+    if (actor->part != ACTOR_PART_BG) {
+        return TRUE;
+    }
+#endif
+
     if (-actor->cull_radius < camera_pos->z && camera_pos->z < actor->cull_distance + actor->cull_radius) {
         f32 m = camera_w < 1.0f ? 1.0f : 1.0f / camera_w;
 #ifdef PC_ENHANCEMENTS
