@@ -216,22 +216,36 @@ static void Camera2_SetView(GAME_PLAY* play) {
         eye->z = center->z + 1.0f;
     }
 
+    /* The player actor can be temporarily unavailable while a town/room
+     * is being constructed. Never dereference it from the camera path:
+     * retain the last valid near plane until the actor is ready. */
+    PLAYER_ACTOR* pc_view_player = get_player_actor_withoutCheck(play);
+
     if (Camera2_CheckInDoorNearFar(play)) {
         camera->perspective.near = 20.0f;
         camera->perspective.far = 1600.0f;
-    } else {
-        if (camera->now_main_index != CAMERA2_PROCESS_LOCK) {
-            f32 dist_from_player = Math3DLength(eye, &get_player_actor_withoutCheck(play)->actor_class.world.position);
-            f32 dt = play->game.graph->dt_num_60fps_frames;
+    } else if (camera->now_main_index != CAMERA2_PROCESS_LOCK) {
+        if (pc_view_player != NULL) {
+            f32 dist_from_player =
+                Math3DLength(eye, &pc_view_player->actor_class.world.position);
+            f32 dt = (play->game.graph != NULL)
+                         ? play->game.graph->dt_num_60fps_frames
+                         : 1.0f;
+
+            /* A bad frame delta during scene startup must not destabilize
+             * chase_f or feed invalid camera values into the renderer. */
+            if (!(dt > 0.0f) || dt > 4.0f) {
+                dt = 1.0f;
+            }
 
             if (dist_from_player < 540.0f) {
                 chase_f(&camera->perspective.near, 145.0f, 4.0f * dt);
             } else {
                 chase_f(&camera->perspective.near, 200.0f, 4.0f * dt);
             }
-
-            camera->perspective.far = 1600.0f;
         }
+
+        camera->perspective.far = 1600.0f;
     }
 
     if (F32_IS_ZERO(camera->perspective.fov_y)) {
@@ -243,7 +257,7 @@ static void Camera2_SetView(GAME_PLAY* play) {
      * item presentations. Other scripted cameras retain their stock view. */
     {
         static int pc_fp_last_index = -1;
-        PLAYER_ACTOR* fp_player = get_player_actor_withoutCheck(play);
+        PLAYER_ACTOR* fp_player = pc_view_player;
         extern int mEv_CheckTitleDemo();
         /* DOOR keeps first person through door/room transitions. INTER and
          * INTER2 stay scripted: they're "look at this" pans (wallpaper
@@ -279,6 +293,21 @@ static void Camera2_SetView(GAME_PLAY* play) {
             fp_pos[0] = fp_player->actor_class.world.position.x;
             fp_pos[1] = fp_player->actor_class.world.position.y;
             fp_pos[2] = fp_player->actor_class.world.position.z;
+
+            /* Actor storage may exist before its transform is initialized
+             * during arrival. Reject non-finite or wildly invalid positions
+             * and leave the stock camera in control for this frame. */
+            if (!(fp_pos[0] == fp_pos[0]) || !(fp_pos[1] == fp_pos[1]) ||
+                !(fp_pos[2] == fp_pos[2]) ||
+                fp_pos[0] > 100000.0f || fp_pos[0] < -100000.0f ||
+                fp_pos[1] > 100000.0f || fp_pos[1] < -100000.0f ||
+                fp_pos[2] > 100000.0f || fp_pos[2] < -100000.0f) {
+                pc_fp_set_active(0);
+                pc_fp_set_in_talk(0);
+                pc_fp_last_index = camera->now_main_index;
+                pc_fp_notify_camera_yaw(camera->direction.y);
+                return;
+            }
 
             /* Entering a conversation (or toggling FP on mid-conversation):
              * turn to face the partner so they stand in front of you (one
