@@ -40,11 +40,11 @@ static void quest_write_hex(int fd, const char* label, uintptr_t value) {
 static void quest_write_proc_maps(int fd) {
     int maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
     if (maps_fd < 0) {
-        static const char unavailable[] = "\\n--- /proc/self/maps unavailable ---\\n";
+        static const char unavailable[] = "\n--- /proc/self/maps unavailable ---\n";
         (void)write(fd, unavailable, sizeof(unavailable) - 1);
         return;
     }
-    static const char header[] = "\\n--- /proc/self/maps ---\\n";
+    static const char header[] = "\n--- /proc/self/maps ---\n";
     (void)write(fd, header, sizeof(header) - 1);
     char buffer[1024];
     size_t total = 0;
