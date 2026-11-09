@@ -318,31 +318,15 @@ extern int Actor_draw_actor_no_culling_check(ACTOR* actor) {
     return Actor_draw_actor_no_culling_check2(actor, &actor->camera_position, actor->camera_w);
 }
 
-extern int Actor_draw_actor_no_culling_check2(ACTOR* actor, xyz_t* camera_pos, f32 camera_w) {
+/* Conservative projected-bounds visibility test. This is kept separate
+ * from the legacy culling policy so full-world mode can collect visibility
+ * data without allowing mono-camera false negatives to hide scenery. */
+static int Actor_visibility_test(ACTOR* actor, xyz_t* camera_pos, f32 camera_w) {
     int res = FALSE;
-
-#ifdef TARGET_PC
-    /* Full world (VR or first person, sticky for the session): this test
-     * runs against the mono game projection with a hard ~1000-unit distance
-     * cutoff — neither matches a free-look camera, so actors/trees/
-     * buildings pop as you look around. Everything is visible; the GPU
-     * cost is trivial on PC. This also covers every BG item (trees/rocks/
-     * flowers) — they funnel through this same function — and prevents
-     * cull-driven deletion (which would fight the residency sweep). */
-    {
-        extern int g_pc_full_world;
-        if (g_pc_full_world) {
-            return TRUE;
-        }
-    }
-#endif
 
     if (-actor->cull_radius < camera_pos->z && camera_pos->z < actor->cull_distance + actor->cull_radius) {
         f32 m = camera_w < 1.0f ? 1.0f : 1.0f / camera_w;
 #ifdef PC_ENHANCEMENTS
-        /* Widescreen hor+ widens the rendered frustum.  The projection matrix
-         * used to compute camera_pos is the original 4:3 one, so the NDC X
-         * edge (1.0) is too narrow.  Extend by the aspect ratio correction. */
         f32 x_edge = (f32)g_pc_window_w / (f32)g_pc_window_h
                    / ((f32)PC_GC_WIDTH / (f32)PC_GC_HEIGHT);
         if (x_edge < 1.0f) x_edge = 1.0f;
@@ -352,7 +336,8 @@ extern int Actor_draw_actor_no_culling_check2(ACTOR* actor, xyz_t* camera_pos, f
         int width_OK = (m * (fabsf(camera_pos->x) - actor->cull_width)) < x_edge;
 
         if (width_OK &&
-            (m * (camera_pos->y + actor->cull_height)) > -1.0f && (m * (camera_pos->y - actor->cull_radius) < 1.0f)) {
+            (m * (camera_pos->y + actor->cull_height)) > -1.0f &&
+            (m * (camera_pos->y - actor->cull_radius) < 1.0f)) {
             res = TRUE;
         }
     }
@@ -360,7 +345,44 @@ extern int Actor_draw_actor_no_culling_check2(ACTOR* actor, xyz_t* camera_pos, f
     return res;
 }
 
+extern int Actor_draw_actor_no_culling_check(ACTOR* actor) {
+    return Actor_draw_actor_no_culling_check2(actor, &actor->camera_position, actor->camera_w);
+}
+
+extern int Actor_draw_actor_no_culling_check2(ACTOR* actor, xyz_t* camera_pos, f32 camera_w) {
+#ifdef TARGET_PC
+    /* Full-world mode still renders everything until visibility has been
+     * validated against both VR eyes. */
+    extern int g_pc_full_world;
+    if (g_pc_full_world) {
+        return TRUE;
+    }
+#endif
+    return Actor_visibility_test(actor, camera_pos, camera_w);
+}
+
 static void Actor_cull_check(ACTOR* actor) {
+#ifdef TARGET_PC
+    extern int g_pc_full_world;
+    if (g_pc_full_world) {
+        /* Measure projected actor bounds in full-world mode, but preserve
+         * residency and drawing until stereo-safe culling is implemented. */
+        static unsigned int visibility_samples;
+        static unsigned int visibility_inside;
+        int visible = Actor_visibility_test(actor, &actor->camera_position, actor->camera_w);
+        visibility_samples++;
+        if (visible) {
+            visibility_inside++;
+        }
+        if ((visibility_samples % 1200u) == 0u) {
+            printf("[PC visibility] projected inside=%u outside=%u samples=%u (diagnostic only; full-world draw remains enabled)\\n",
+                   visibility_inside, visibility_samples - visibility_inside, visibility_samples);
+            visibility_inside = 0;
+        }
+        actor->state_bitfield |= ACTOR_STATE_NO_CULL;
+        return;
+    }
+#endif
     if (Actor_draw_actor_no_culling_check(actor) == TRUE) {
         actor->state_bitfield |= ACTOR_STATE_NO_CULL;
     } else {
