@@ -179,7 +179,12 @@ void pc_fp_frame(float dt) {
     if (sx < -1.0f) sx = -1.0f;
     if (sy > 1.0f) sy = 1.0f;
     if (sy < -1.0f) sy = -1.0f;
+    if (!isfinite(dt) || dt <= 0.0f) dt = 1.0f;
     if (dt > 4.0f) dt = 4.0f;
+
+    /* Recover cleanly if an earlier invalid frame ever poisoned the angles. */
+    if (!isfinite(s_yaw)) s_yaw = (float)(u16)s_last_cam_yaw;
+    if (!isfinite(s_pitch)) s_pitch = 0.0f;
 
     if (pc_vr_active() && g_pc_settings.fp_snap_degrees > 0) {
         /* VR: snap turning (comfort); pitch comes from the headset */
@@ -218,6 +223,12 @@ void pc_fp_frame(float dt) {
 }
 
 void pc_fp_face_point(const float player_pos[3], float target_x, float target_y, float target_z) {
+    if (player_pos == NULL || !isfinite(player_pos[0]) ||
+        !isfinite(player_pos[1]) || !isfinite(player_pos[2]) ||
+        !isfinite(target_x) || !isfinite(target_y) || !isfinite(target_z)) {
+        return;
+    }
+
     float eye_y = player_pos[1] + s_player_head_height;
     float dx = target_x - player_pos[0];
     float dz = target_z - player_pos[2];
@@ -240,6 +251,24 @@ void pc_fp_face_point(const float player_pos[3], float target_x, float target_y,
 }
 
 void pc_fp_view(const float player_pos[3], float eye[3], float at[3], float up[3]) {
+    if (player_pos == NULL || eye == NULL || at == NULL || up == NULL) {
+        return;
+    }
+
+    /* During town arrival the actor can briefly have an incomplete transform.
+     * Return a harmless level view rather than allowing NaNs into GX/VR. */
+    if (!isfinite(player_pos[0]) || !isfinite(player_pos[1]) ||
+        !isfinite(player_pos[2]) || !isfinite(s_player_head_height)) {
+        eye[0] = eye[1] = eye[2] = 0.0f;
+        at[0] = 0.0f;
+        at[1] = 0.0f;
+        at[2] = 1.0f;
+        up[0] = 0.0f;
+        up[1] = 1.0f;
+        up[2] = 0.0f;
+        return;
+    }
+
     const float th = s_yaw * (float)(2.0 * PC_PI / 65536.0);
     const float cp = cosf(s_pitch);
     const float fx = sinf(th) * cp;   /* game convention: x = sin, z = cos */
