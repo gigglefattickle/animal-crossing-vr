@@ -277,6 +277,13 @@ static void Actor_draw_ta_clr(ACTOR* actor, GAME_PLAY* play) {
 }
 
 static void Actor_draw(GAME_PLAY* play, ACTOR* actor) {
+#ifdef TARGET_PC
+    /* Keep each world actor's geometry in its own submitted GX batch. This
+     * gives later per-object visibility/occlusion tests a safe draw boundary
+     * without changing the actor's matrices, state, or draw order. */
+    extern void pc_gx_object_boundary(void);
+    pc_gx_object_boundary();
+#endif
     LightsN* lights;
     lights = Global_light_read(&play->global_light, play->game.graph);
 
@@ -300,6 +307,11 @@ static void Actor_draw(GAME_PLAY* play, ACTOR* actor) {
     if (actor->shape_info.shadow_proc != NULL) {
         (*actor->shape_info.shadow_proc)(actor, lights, play);
     }
+#ifdef TARGET_PC
+    /* Submit actor + shadow together, but do not merge the next actor into
+     * this batch. This is a draw boundary, not a GPU synchronization. */
+    pc_gx_object_boundary();
+#endif
 }
 
 extern int Actor_draw_actor_no_culling_check(ACTOR* actor) {
