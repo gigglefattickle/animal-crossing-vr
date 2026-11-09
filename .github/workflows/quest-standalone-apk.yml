@@ -117,8 +117,27 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
-          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 15
-          if ($LASTEXITCODE -ne 0) { throw 'Quest APK build failed.' }
+          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 16 --no-package
+          if ($LASTEXITCODE -ne 0) { throw 'Quest native build failed.' }
+
+          $buildDir = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\\build\\game-arm32'
+          $mainLibraries = @(Get-ChildItem -Path $buildDir -Filter 'libmain.so' -File -Recurse)
+          if ($mainLibraries.Count -ne 1) { throw "Expected exactly one libmain.so, found $($mainLibraries.Count)." }
+          $ndkBin = Join-Path $env:ANDROID_HOME 'ndk\\27.3.13750724\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin'
+          $objcopy = Join-Path $ndkBin 'llvm-objcopy.exe'
+          $strip = Join-Path $ndkBin 'llvm-strip.exe'
+          if (-not (Test-Path $objcopy) -or -not (Test-Path $strip)) { throw 'NDK LLVM symbol tools were not found.' }
+
+          $symbolStage = Join-Path $env:GITHUB_WORKSPACE 'quest-debug-symbols'
+          New-Item -ItemType Directory -Force -Path $symbolStage | Out-Null
+          & $objcopy --only-keep-debug $mainLibraries[0].FullName (Join-Path $symbolStage 'libmain.so.debug')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract native debug symbols.' }
+          & $strip --strip-debug $mainLibraries[0].FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Could not strip debug sections from the APK library.' }
+          git rev-parse HEAD | Set-Content (Join-Path $symbolStage 'SOURCE-COMMIT.txt')
+
+          python quest/tools/package_apk.py --build-dir $buildDir --abi armeabi-v7a --version 16
+          if ($LASTEXITCODE -ne 0) { throw 'Quest APK packaging failed.' }
 
       - name: Stage APK and build receipt
         shell: pwsh
@@ -137,5 +156,13 @@ jobs:
         with:
           name: AnimalCrossing-Quest-APK
           path: quest-apk-artifact/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload matching native debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimalCrossing-Quest-Debug-Symbols
+          path: quest-debug-symbols/*
           if-no-files-found: error
           retention-days: 30
