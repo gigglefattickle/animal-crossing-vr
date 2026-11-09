@@ -27,11 +27,11 @@ static void aESC_owari_message() {
   int msg_no = 0;
 
   if (win_p == NULL) {
-    printf("[MayorTalk] followup_message skipped: message window is null\\n");
+    printf("[MayorTalk] followup_message skipped: message window is null\n");
     return;
   }
 
-  printf("[MayorTalk] followup_message begin event_save=%s\\n", ev_save ? "present" : "missing");
+  printf("[MayorTalk] followup_message begin event_save=%s\n", ev_save ? "present" : "missing");
 
   /* The event save slot can be absent in imported/older saves. Never
    * dereference it from the dialogue-advance callback without checking. */
@@ -44,7 +44,7 @@ static void aESC_owari_message() {
   }
 
   u8 bridge_flags = *(u8*)&Save_Get(event_save_common).bridge_flags;
-  printf("[MayorTalk] followup_message select msg_no=%d bridge_flags=0x%02x\\n",
+  printf("[MayorTalk] followup_message select msg_no=%d bridge_flags=0x%02x\n",
          msg_no, (unsigned)bridge_flags);
   if (bridge_flags & 0x80) {
     mMsg_Set_continue_msg_num(win_p, 0x2F47 + msg_no);
@@ -112,11 +112,11 @@ static void aESC_talk_select(EVENT_SONCHO_ACTOR* soncho, GAME* game) {
 static void aESC_talk_secand(EVENT_SONCHO_ACTOR* soncho, GAME* game) {
   mMsg_Window_c* win_p = mMsg_Get_base_window_p();
   if (win_p == NULL) {
-    printf("[MayorTalk] second_dialogue waiting: message window is null\\n");
+    printf("[MayorTalk] second_dialogue waiting: message window is null\n");
     return;
   }
   if ((int)mDemo_Get_OrderValue(mDemo_ORDER_NPC0, 9) == 1 && mMsg_Check_MainNormalContinue(win_p)) {
-    printf("[MayorTalk] second_dialogue advance\\n");
+    printf("[MayorTalk] second_dialogue advance\n");
     mDemo_Set_OrderValue(mDemo_ORDER_NPC0, 9, 0);
     aEGH_change_talk_proc(soncho, aESC_TALK_OWARI);
     aESC_owari_message();
@@ -188,11 +188,11 @@ static int aESC_talk_end_chk(ACTOR* actorx, GAME* game) {
   /* A damaged save or interrupted event must not index beyond this
    * mayor-specific dialogue state table. */
   if (soncho->talk_state >= aESC_TALK_NUM) {
-    printf("[MayorTalk] invalid_talk_state=%u; resetting\\n", (unsigned)soncho->talk_state);
+    printf("[MayorTalk] invalid_talk_state=%u; resetting\n", (unsigned)soncho->talk_state);
     soncho->talk_state = aESC_TALK_OWARI;
   }
 
-  printf("[MayorTalk] talk_end_check state=%u\\n", (unsigned)soncho->talk_state);
+  printf("[MayorTalk] talk_end_check state=%u\n", (unsigned)soncho->talk_state);
   (*proc[soncho->talk_state])(soncho, game);
 
   if (mDemo_Check(mDemo_TYPE_TALK, actorx) == FALSE) {
