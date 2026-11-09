@@ -117,7 +117,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
-          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 16 --no-package
+          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 17 --no-package
           if ($LASTEXITCODE -ne 0) { throw 'Quest native build failed.' }
 
           $buildDir = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\build\game-arm32'
@@ -136,7 +136,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not strip debug sections from the APK library.' }
           git rev-parse HEAD | Set-Content (Join-Path $symbolStage 'SOURCE-COMMIT.txt')
 
-          python quest/tools/package_apk.py --build-dir $buildDir --abi armeabi-v7a --version 16
+          python quest/tools/package_apk.py --build-dir $buildDir --abi armeabi-v7a --version 17
           if ($LASTEXITCODE -ne 0) { throw 'Quest APK packaging failed.' }
 
       - name: Stage APK and build receipt
