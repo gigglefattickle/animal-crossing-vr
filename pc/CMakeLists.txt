@@ -525,6 +525,10 @@ set_target_properties(ac_pc PROPERTIES
 )
 if(ANDROID)
     set_target_properties(ac_pc PROPERTIES OUTPUT_NAME "main")
+    # Keep optimized Quest builds symbolicate-able without changing runtime
+    # optimization. The workflow extracts a matching .debug sidecar, then
+    # strips debug sections from the installable shared library.
+    target_compile_options(ac_pc PRIVATE -g1 -fno-omit-frame-pointer)
 endif()
 
 # Copy shader files to output directory (loaded at runtime, with embedded fallback)
