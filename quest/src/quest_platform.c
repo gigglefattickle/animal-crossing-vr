@@ -35,6 +35,38 @@ static void quest_write_hex(int fd, const char* label, uintptr_t value) {
     (void)write(fd, line, length);
 }
 
+/* /proc/self/maps is read with fixed-size buffers so a native crash report
+ * can map the captured PC/LR back to the exact shared library and offset. */
+static void quest_write_proc_maps(int fd) {
+    int maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+    if (maps_fd < 0) {
+        static const char unavailable[] = "\\n--- /proc/self/maps unavailable ---\\n";
+        (void)write(fd, unavailable, sizeof(unavailable) - 1);
+        return;
+    }
+    static const char header[] = "\\n--- /proc/self/maps ---\\n";
+    (void)write(fd, header, sizeof(header) - 1);
+    char buffer[1024];
+    size_t total = 0;
+    while (total < 64u * 1024u) {
+        size_t wanted = sizeof(buffer);
+        if (wanted > 64u * 1024u - total) wanted = 64u * 1024u - total;
+        ssize_t count = read(maps_fd, buffer, wanted);
+        if (count <= 0) break;
+        size_t offset = 0;
+        while (offset < (size_t)count) {
+            ssize_t written = write(fd, buffer + offset, (size_t)count - offset);
+            if (written <= 0) {
+                (void)close(maps_fd);
+                return;
+            }
+            offset += (size_t)written;
+        }
+        total += (size_t)count;
+    }
+    (void)close(maps_fd);
+}
+
 static void quest_native_crash_handler(int sig, siginfo_t* info, void* context) {
     int fd = open("native-crash.txt", O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd >= 0) {
@@ -62,6 +94,7 @@ static void quest_native_crash_handler(int sig, siginfo_t* info, void* context) 
             quest_write_hex(fd, "fp=", (uintptr_t)uc->uc_mcontext.arm_fp);
         }
 #endif
+        quest_write_proc_maps(fd);
         (void)fsync(fd);
         (void)close(fd);
     }
