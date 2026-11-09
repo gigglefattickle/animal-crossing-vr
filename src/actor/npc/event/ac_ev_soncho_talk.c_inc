@@ -24,18 +24,27 @@ static u16 aESC_bitcheck_func() {
 static void aESC_owari_message() {
   mMsg_Window_c* win_p = mMsg_Get_base_window_p();
   aESC_event_save_c* ev_save = (aESC_event_save_c*)mEv_get_save_area(mEv_EVENT_SONCHO_BRIDGE_MAKE, 34);
+  int msg_no = 0;
+
+  /* The event save slot can be absent in imported/older saves. Never
+   * dereference it from the dialogue-advance callback without checking. */
+  if (ev_save != NULL) {
+    msg_no = ev_save->msg_no;
+    if (msg_no >= 5) {
+      msg_no = 0;
+      ev_save->msg_no = 0;
+    }
+  }
 
   if ((*(u8*)&Save_Get(event_save_common).bridge_flags) & 0x80) {
-    mMsg_Set_continue_msg_num(win_p, 0x2F47 + ev_save->msg_no);
+    mMsg_Set_continue_msg_num(win_p, 0x2F47 + msg_no);
   }
   else {
-    mMsg_Set_continue_msg_num(win_p, 0x2F39 + ev_save->msg_no);
+    mMsg_Set_continue_msg_num(win_p, 0x2F39 + msg_no);
   }
 
-  ev_save->msg_no++;
-
-  if (ev_save->msg_no >= 5) {
-    ev_save->msg_no = 0;
+  if (ev_save != NULL) {
+    ev_save->msg_no = (u8)((msg_no + 1) % 5);
   }
 }
 
@@ -159,6 +168,12 @@ static int aESC_talk_end_chk(ACTOR* actorx, GAME* game) {
 
   EVENT_SONCHO_ACTOR* soncho = (EVENT_SONCHO_ACTOR*)actorx;
   int res = FALSE;
+
+  /* A damaged save or interrupted event must not index beyond this
+   * mayor-specific dialogue state table. */
+  if (soncho->talk_state >= aESC_TALK_NUM) {
+    soncho->talk_state = aESC_TALK_OWARI;
+  }
 
   (*proc[soncho->talk_state])(soncho, game);
 
