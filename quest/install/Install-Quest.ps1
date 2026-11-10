@@ -166,20 +166,36 @@ function Get-LocalInfo([string]$Path) {
 
 function Assert-CompatibleRom([string]$Path) {
     $extension = [System.IO.Path]::GetExtension($Path).ToLowerInvariant()
-    if ($extension -notin @('.iso', '.gcm', '.ciso')) { throw 'Choose your own USA Rev 0 Animal Crossing .iso, .gcm, or .ciso dump; RVZ/ZIP files are not supported.' }
+    if ($extension -notin @('.iso', '.gcm', '.ciso', '.rvz')) { throw 'Choose your own USA Rev 0 Animal Crossing .iso, .gcm, .ciso, or .rvz dump.' }
     $stream = [System.IO.File]::OpenRead($Path)
     try {
         $header = New-Object byte[] 32
         if ($stream.Read($header, 0, 32) -ne 32) { throw 'The disc image is incomplete.' }
-        if ([System.Text.Encoding]::ASCII.GetString($header, 0, 4) -eq 'CISO') {
-            $blockSize = [BitConverter]::ToUInt32($header, 4)
-            if ($blockSize -lt 32 -or $header[8] -eq 0) { throw 'Invalid CISO disc header.' }
-            $null = $stream.Seek(32768, [System.IO.SeekOrigin]::Begin)
-            if ($stream.Read($header, 0, 32) -ne 32) { throw 'The CISO disc image is incomplete.' }
-        }
-        if ([System.Text.Encoding]::ASCII.GetString($header, 0, 6) -ne 'GAFE01' -or $header[6] -ne 0 -or $header[7] -ne 0 -or
-            $header[28] -ne 0xC2 -or $header[29] -ne 0x33 -or $header[30] -ne 0x9F -or $header[31] -ne 0x3D) {
-            throw 'This build requires Animal Crossing USA, revision 0 (GAFE01_00). The selected file has a different or invalid disc header.'
+        if ($extension -eq '.rvz') {
+            if ([System.Text.Encoding]::ASCII.GetString($header, 0, 4) -ne "RVZ$([char]1)") {
+                throw 'Invalid RVZ container header.'
+            }
+            $null = $stream.Seek(0x58, [System.IO.SeekOrigin]::Begin)
+            $discId = New-Object byte[] 6
+            if ($stream.Read($discId, 0, 6) -ne 6) { throw 'The RVZ disc header is incomplete.' }
+            $null = $stream.Seek(0x74, [System.IO.SeekOrigin]::Begin)
+            $discMagic = New-Object byte[] 4
+            if ($stream.Read($discMagic, 0, 4) -ne 4) { throw 'The RVZ disc header is incomplete.' }
+            if ([System.Text.Encoding]::ASCII.GetString($discId) -ne 'GAFE01' -or
+                $discMagic[0] -ne 0xC2 -or $discMagic[1] -ne 0x33 -or $discMagic[2] -ne 0x9F -or $discMagic[3] -ne 0x3D) {
+                throw 'This build requires Animal Crossing USA, revision 0 (GAFE01_00). The selected RVZ has a different or invalid disc header.'
+            }
+        } else {
+            if ([System.Text.Encoding]::ASCII.GetString($header, 0, 4) -eq 'CISO') {
+                $blockSize = [BitConverter]::ToUInt32($header, 4)
+                if ($blockSize -lt 32 -or $header[8] -eq 0) { throw 'Invalid CISO disc header.' }
+                $null = $stream.Seek(32768, [System.IO.SeekOrigin]::Begin)
+                if ($stream.Read($header, 0, 32) -ne 32) { throw 'The CISO disc image is incomplete.' }
+            }
+            if ([System.Text.Encoding]::ASCII.GetString($header, 0, 6) -ne 'GAFE01' -or $header[6] -ne 0 -or $header[7] -ne 0 -or
+                $header[28] -ne 0xC2 -or $header[29] -ne 0x33 -or $header[30] -ne 0x9F -or $header[31] -ne 0x3D) {
+                throw 'This build requires Animal Crossing USA, revision 0 (GAFE01_00). The selected file has a different or invalid disc header.'
+            }
         }
     } finally { $stream.Dispose() }
     return $extension
@@ -210,7 +226,7 @@ try {
     $location = (Invoke-App 'pwd').Trim()
     if (!$location.EndsWith('/' + $QuestPackage)) { throw 'Unexpected private app-storage directory; no game data was changed.' }
     $listing = Invoke-App 'if [ -d files/rom ]; then find files/rom -maxdepth 1 -type f -print; fi'
-    $existing = @($listing -split '\r?\n' | Where-Object { $_ -match '\.(iso|gcm|ciso)$' })
+    $existing = @($listing -split '\r?\n' | Where-Object { $_ -match '\.(iso|gcm|ciso|rvz)$' })
     if ($existing.Count -gt 0) {
         Write-Host 'Your existing Quest ROM, saves, and settings have been kept. No game data was imported.'
     } else {
@@ -219,7 +235,7 @@ try {
             $dialog = New-Object System.Windows.Forms.OpenFileDialog
             try {
                 $dialog.Title = 'Select your own Animal Crossing USA Rev 0 (GAFE01_00) disc image'
-                $dialog.Filter = 'GameCube disc images (*.iso;*.gcm;*.ciso)|*.iso;*.gcm;*.ciso'
+                $dialog.Filter = 'GameCube disc images (*.iso;*.gcm;*.ciso;*.rvz)|*.iso;*.gcm;*.ciso;*.rvz'
                 $dialog.CheckFileExists = $true
                 $dialog.Multiselect = $false
                 if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $RomPath = $dialog.FileName }

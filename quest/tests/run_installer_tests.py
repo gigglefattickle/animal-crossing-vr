@@ -24,7 +24,7 @@ def check(condition, message):
         raise AssertionError(message)
 
 
-def disc(ciso=False, wrong_region=False, wrong_revision=False):
+def disc(ciso=False, wrong_region=False, wrong_revision=False, rvz=False):
     # Exercises all byte values repeatedly, including Ctrl-Z, beyond pipe buffers.
     raw = bytearray(bytes(range(256)) * 8192)
     raw[:8] = b'GAFE01\0\0'
@@ -33,6 +33,10 @@ def disc(ciso=False, wrong_region=False, wrong_revision=False):
         raw[3] = ord('P')
     if wrong_revision:
         raw[7] = 1
+    if rvz:
+        raw[:4] = b'RVZ\x01'
+        raw[0x58:0x5e] = b'GAFE01'
+        raw[0x74:0x78] = bytes.fromhex('c2339f3d')
     if ciso:
         header = bytearray(32768)
         header[:4] = b'CISO'
@@ -59,6 +63,7 @@ def main():
             ('fresh-iso', 'fresh', '.iso', disc(), 0),
             ('fresh-gcm', 'fresh', '.gcm', disc(), 0),
             ('fresh-ciso', 'fresh', '.ciso', disc(True), 0),
+            ('fresh-rvz', 'fresh', '.rvz', disc(rvz=True), 0),
             ('existing', 'fresh', '.iso', disc(), 0),
             ('unauthorized', 'unauthorized', '.iso', disc(), 1),
             ('offline', 'offline', '.iso', disc(), 1),
@@ -74,7 +79,7 @@ def main():
             ('install-error', 'installfail', '.iso', disc(), 1),
             ('bad-adb', 'fresh', '.iso', disc(), 1),
             ('truncated-disc', 'fresh', '.iso', b'too short', 1),
-            ('unsupported-rvz', 'fresh', '.rvz', disc(), 1),
+            ('invalid-rvz', 'fresh', '.rvz', b'not an RVZ container' + bytes(512), 1),
             ('missing-rom', 'fresh', '.iso', disc(), 1),
         ]
         for name, scenario, extension, data, expected_code in scenarios:
