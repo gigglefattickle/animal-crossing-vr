@@ -1,5 +1,5 @@
 name: Build standalone Quest APK
-# Rebuild after protected-actor culling safeguards and native crash-symbolication updates.
+# Rebuild current unified Quest launcher and verify the latest source snapshot.
 
 on:
   workflow_dispatch:
