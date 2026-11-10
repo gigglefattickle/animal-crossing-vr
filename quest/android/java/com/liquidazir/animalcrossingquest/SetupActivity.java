@@ -390,17 +390,6 @@ public final class SetupActivity extends Activity {
         return destination.getName();
     }
 
-    private void choose3dsRom() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
-                "application/octet-stream", "application/x-nintendo-3ds-rom"
-        });
-        intent.putExtra(Intent.EXTRA_TITLE, "Select a 3DS game backup (.3ds, .cia, .cci)");
-        startActivityForResult(intent, IMPORT_3DS_ROM);
-    }
-
     private void launchNewLeaf() {
         File[] files = newLeafRomDirectory().listFiles();
         int count = files == null ? 0 : files.length;
