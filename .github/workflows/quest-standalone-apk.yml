@@ -118,7 +118,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Set-Location (Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\source')
-          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 17 --no-package
+          python quest/tools/build_quest.py --mode game --abi armeabi-v7a --jobs 4 --version 17 --build-type RelWithDebInfo --no-package
           if ($LASTEXITCODE -ne 0) { throw 'Quest native build failed.' }
 
           $buildDir = Join-Path $env:GITHUB_WORKSPACE 'AnimalCrossing\build\game-arm32'
@@ -131,11 +131,20 @@ jobs:
 
           $symbolStage = Join-Path $env:GITHUB_WORKSPACE 'quest-debug-symbols'
           New-Item -ItemType Directory -Force -Path $symbolStage | Out-Null
-          & $objcopy --only-keep-debug $mainLibraries[0].FullName (Join-Path $symbolStage 'libmain.so.debug')
-          if ($LASTEXITCODE -ne 0) { throw 'Could not extract native debug symbols.' }
-          & $strip --strip-debug $mainLibraries[0].FullName
-          if ($LASTEXITCODE -ne 0) { throw 'Could not strip debug sections from the APK library.' }
+          $nativeLibraries = @(
+            Get-ChildItem -Path $buildDir -Filter 'libmain.so' -File -Recurse
+            Get-ChildItem -Path $buildDir -Filter 'libSDL2.so' -File -Recurse
+            Get-ChildItem -Path $buildDir -Filter 'libopenxr_loader.so' -File -Recurse
+          )
+          if ($nativeLibraries.Count -ne 3) { throw "Expected main, SDL2 and OpenXR libraries; found $($nativeLibraries.Count)." }
+          foreach ($library in $nativeLibraries) {
+            & $objcopy --only-keep-debug $library.FullName (Join-Path $symbolStage ($library.Name + '.debug'))
+            if ($LASTEXITCODE -ne 0) { throw "Could not extract debug symbols from $($library.Name)." }
+            & $strip --strip-debug $library.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Could not strip debug sections from $($library.Name)." }
+          }
           git rev-parse HEAD | Set-Content (Join-Path $symbolStage 'SOURCE-COMMIT.txt')
+          & (Join-Path $ndkBin 'llvm-objdump.exe') --version | Set-Content (Join-Path $symbolStage 'NDK-SYMBOL-TOOLS.txt')
 
           python quest/tools/package_apk.py --build-dir $buildDir --abi armeabi-v7a --version 17
           if ($LASTEXITCODE -ne 0) { throw 'Quest APK packaging failed.' }
