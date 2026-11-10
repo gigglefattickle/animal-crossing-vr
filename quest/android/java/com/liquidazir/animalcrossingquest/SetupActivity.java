@@ -48,6 +48,7 @@ public final class SetupActivity extends Activity {
     private static final int IMPORT_SKYBOX = 4111;
     private static final int IMPORT_SAVES = 4112;
     private static final int EXPORT_SAVES = 4113;
+    private static final int IMPORT_3DS_ROM = 4114;
     private static final String TAG = "ACQuestSetup";
     private TextView status;
     private Button playButton;
@@ -192,7 +193,7 @@ public final class SetupActivity extends Activity {
         LinearLayout.LayoutParams secondRowParams = new LinearLayout.LayoutParams(-1, 58);
         secondRowParams.topMargin = 9;
         addLauncherTile(secondRow, "NEW LEAF", () -> launchNewLeaf(), leafGreen, deepGreen, cream);
-        addLauncherTile(secondRow, "COMING SOON", () -> showComingSoon(), leafGreen, deepGreen, cream);
+        addLauncherTile(secondRow, "IMPORT 3DS ROMS", () -> choose3dsRom(), leafGreen, deepGreen, cream);
         root.addView(secondRow, secondRowParams);
 
         TextView versionFooter = new TextView(this);
@@ -324,19 +325,89 @@ public final class SetupActivity extends Activity {
             }).show();
     }
 
-    private void launchNewLeaf() {
-        // New Leaf is being integrated into this app. Never hand off to a
-        // separately installed emulator; keep the experience inside this launcher.
-        Diagnostics.record(this, "launcher.new_leaf_not_integrated");
-        showResult("New Leaf is being integrated into Animal Crossing VR. It will run here without a separate app once the 3DS emulator engine is ready.", false);
+    private File newLeafRomDirectory() {
+        File directory = new File(getFilesDir(), "newleaf/roms");
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IllegalStateException("Could not create New Leaf ROM folder");
+        }
+        return directory;
     }
 
-    private void showComingSoon() {
-        new AlertDialog.Builder(this)
-            .setTitle("Coming Soon")
-            .setMessage("More launcher features are on the way!")
-            .setPositiveButton("OK", null)
-            .show();
+    private void choose3dsRom() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/octet-stream", "application/x-nintendo-3ds-rom"
+        });
+        intent.putExtra(Intent.EXTRA_TITLE, "Select a 3DS game backup (.3ds, .cia, .cci)");
+        startActivityForResult(intent, IMPORT_3DS_ROM);
+    }
+
+    private String import3dsRom(Uri source) throws Exception {
+        String displayName = "new-leaf-game.3ds";
+        try (Cursor cursor = getContentResolver().query(source,
+                new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (column >= 0 && cursor.getString(column) != null) displayName = cursor.getString(column);
+            }
+        }
+        String lower = displayName.toLowerCase(Locale.ROOT);
+        if (!(lower.endsWith(".3ds") || lower.endsWith(".cia") || lower.endsWith(".cci"))) {
+            throw new IllegalArgumentException("Choose a .3ds, .cia, or .cci file");
+        }
+        String safeName = displayName.replaceAll("[^A-Za-z0-9._-]", "_");
+        File destination = new File(newLeafRomDirectory(), safeName);
+        if (destination.exists()) {
+            int dot = safeName.lastIndexOf('.');
+            String stem = dot > 0 ? safeName.substring(0, dot) : safeName;
+            String ext = dot > 0 ? safeName.substring(dot) : "";
+            int suffix = 2;
+            do {
+                destination = new File(newLeafRomDirectory(), stem + "_" + suffix++ + ext);
+            } while (destination.exists());
+        }
+        long copied = 0L;
+        try (InputStream input = getContentResolver().openInputStream(source);
+             FileOutputStream output = new FileOutputStream(destination)) {
+            if (input == null) throw new IllegalStateException("Could not open selected file");
+            byte[] buffer = new byte[1024 * 1024];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                copied += count;
+                output.write(buffer, 0, count);
+            }
+            output.getFD().sync();
+        } catch (Exception error) {
+            destination.delete();
+            throw error;
+        }
+        if (copied == 0L) {
+            destination.delete();
+            throw new IllegalArgumentException("The selected game file is empty");
+        }
+        return destination.getName();
+    }
+
+    private void choose3dsRom() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/octet-stream", "application/x-nintendo-3ds-rom"
+        });
+        intent.putExtra(Intent.EXTRA_TITLE, "Select a 3DS game backup (.3ds, .cia, .cci)");
+        startActivityForResult(intent, IMPORT_3DS_ROM);
+    }
+
+    private void launchNewLeaf() {
+        File[] files = newLeafRomDirectory().listFiles();
+        int count = files == null ? 0 : files.length;
+        Diagnostics.record(this, "launcher.new_leaf_selected imported_roms=" + count);
+        showResult(count == 0
+                ? "New Leaf library is empty. Use IMPORT 3DS ROMS to add a .3ds, .cia, or .cci backup. The embedded 3DS emulator is still being integrated."
+                : count + " New Leaf game file(s) imported. The embedded 3DS emulator is still being integrated.", false);
     }
 
     private android.graphics.Bitmap loadLauncherCover() {
@@ -741,6 +812,19 @@ public final class SetupActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == IMPORT_3DS_ROM) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                try {
+                    String name = import3dsRom(data.getData());
+                    Diagnostics.record(this, "launcher.new_leaf_rom_imported name=" + name);
+                    showResult("Imported New Leaf game: " + name, true);
+                } catch (Exception error) {
+                    Log.e(TAG, "New Leaf 3DS ROM import failed", error);
+                    showResult("3DS import failed: " + error.getMessage(), false);
+                }
+            }
+            return;
+        }
         if (requestCode == IMPORT_SKYBOX) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try {
