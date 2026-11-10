@@ -325,24 +325,10 @@ public final class SetupActivity extends Activity {
     }
 
     private void launchNewLeaf() {
-        // New Leaf runs through the separate AzaharXR Android app.
-        // Support both its normal and development package IDs.
-        String[] packages = { "org.citra.citra_emu", "org.citra.citra_emu.debug" };
-        for (String packageName : packages) {
-            try {
-                Intent launch = getPackageManager().getLaunchIntentForPackage(packageName);
-                if (launch != null) {
-                    Diagnostics.record(this, "launcher.new_leaf_launch package=" + packageName);
-                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(launch);
-                    return;
-                }
-            } catch (Exception error) {
-                Log.w(TAG, "Could not launch New Leaf app package " + packageName, error);
-            }
-        }
-        Diagnostics.record(this, "launcher.new_leaf_not_installed");
-        showResult("New Leaf VR is not installed yet. Install the AzaharXR / New Leaf VR app, then try again.", false);
+        // New Leaf is being integrated into this app. Never hand off to a
+        // separately installed emulator; keep the experience inside this launcher.
+        Diagnostics.record(this, "launcher.new_leaf_not_integrated");
+        showResult("New Leaf is being integrated into Animal Crossing VR. It will run here without a separate app once the 3DS emulator engine is ready.", false);
     }
 
     private void showComingSoon() {
