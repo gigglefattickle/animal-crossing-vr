@@ -84,6 +84,8 @@ static struct {
     M34 view_correction[2];
     float eye_projection[2][4][4], eye_depth_range[2][2];
     float world_scale, ui_distance, ui_size, height_offset, ui_dist_k;
+    /* F5 scale changes are applied after the next valid OpenXR view update. */
+    int fp_scale_pending, fp_scale_target;
     GLuint panel_prog, panel_vao, panel_vbo;
     GLint panel_u_mvp, panel_u_tex;
     GLuint ray_prog, ray_vao, ray_vbo;
@@ -160,16 +162,11 @@ static float pcvr_far_m(void) {
 
 void pc_vr_set_fp_scale(int fp_active) {
     if (!s_vr.active) return;
-    float want = fp_active
-        ? (g_pc_settings.vr_fp_world_scale / 1000.0f)
-        : (g_pc_settings.vr_world_scale / 1000.0f);
-    if (want <= 0.0001f) want = fp_active ? 0.025f : 0.01f;
-    if (want == s_vr.world_scale) return;
-    s_vr.world_scale = want;
-    pcvr_update_eye_projection(0);
-    pcvr_update_eye_projection(1);
-    pcvr_update_view_correction();
-    pcvr_log("world scale -> %.4f m/unit (%s)", want, fp_active ? "first person" : "camera");
+    /* F5 may arrive between eye passes while a GX batch still uses the old
+     * view correction. Queue the scale change for a coherent XR frame. */
+    s_vr.fp_scale_target = fp_active != 0;
+    s_vr.fp_scale_pending = 1;
+    pcvr_log("world scale change queued (%s)", fp_active ? "first person" : "camera");
 }
 
 static int pcvr_create_target(PCVRTarget* t, int w, int h) {
