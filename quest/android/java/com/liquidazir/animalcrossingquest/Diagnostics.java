@@ -188,6 +188,68 @@ public final class Diagnostics {
         return out.toString();
     }
 
+    /**
+     * Return the native capture only when it belongs to Android's newest
+     * recorded crash process. A file left by an earlier run must never be
+     * presented as evidence for a newer process exit.
+     */
+    public static String readNativeCrashCapture(Context context) {
+        long expectedPid = 0L;
+        long expectedTimestamp = 0L;
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                Object manager = context.getSystemService(Context.ACTIVITY_SERVICE);
+                Method history = manager.getClass().getMethod(
+                        "getHistoricalProcessExitReasons", String.class, int.class, int.class);
+                Object value = history.invoke(manager, context.getPackageName(), 0, 10);
+                if (value instanceof List) {
+                    for (Object exit : (List<?>) value) {
+                        Class<?> type = exit.getClass();
+                        int reason = ((Number) type.getMethod("getReason").invoke(exit)).intValue();
+                        if (reason == 4 || reason == 5) {
+                            expectedPid = ((Number) type.getMethod("getPid").invoke(exit)).longValue();
+                            expectedTimestamp = ((Number) type.getMethod("getTimestamp").invoke(exit)).longValue();
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception error) {
+                return "Could not match native capture to Android crash history: "
+                        + error.getClass().getSimpleName() + ": " + error.getMessage() + "\\n";
+            }
+        }
+        if (expectedPid == 0L) return "No matching Android crash process is available. Capture not attached.\\n";
+
+        File capture = new File(context.getFilesDir(), "native-crash.txt");
+        if (!capture.isFile()) return "No native capture file exists for newest crash PID "
+                + expectedPid + " (timestamp " + expectedTimestamp + ").\\n";
+        try {
+            byte[] bytes = new byte[(int)Math.min(capture.length(), 64 * 1024)];
+            int length = 0;
+            try (java.io.FileInputStream input = new java.io.FileInputStream(capture)) {
+                while (length < bytes.length) {
+                    int count = input.read(bytes, length, bytes.length - length);
+                    if (count < 0) break;
+                    length += count;
+                }
+            }
+            String contents = new String(bytes, 0, length, "UTF-8");
+            java.util.regex.Matcher matcher = java.util.regex.Pattern
+                    .compile("(?m)^pid=0x([0-9a-fA-F]+)\\\\s*$").matcher(contents);
+            if (!matcher.find()) return "Native capture has no readable PID; not attached to avoid misattribution.\\n";
+            long capturedPid = Long.parseLong(matcher.group(1), 16);
+            if (capturedPid != expectedPid) {
+                return "STALE NATIVE CAPTURE NOT ATTACHED: capture PID " + capturedPid
+                        + " does not match newest Android crash PID " + expectedPid
+                        + " (timestamp " + expectedTimestamp + ").\\n";
+            }
+            return "Matched native capture PID " + capturedPid + " to newest Android crash exit.\\n" + contents;
+        } catch (Exception error) {
+            return "Could not validate native capture: " + error.getClass().getSimpleName()
+                    + ": " + error.getMessage() + "\\n";
+        }
+    }
+
     public static String readEvents(Context context) {
         StringBuilder result = new StringBuilder();
         File directory = new File(context.getFilesDir(), "diagnostics");
