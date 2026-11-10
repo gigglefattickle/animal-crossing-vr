@@ -399,6 +399,27 @@ extern "C" void pc_vr_frame_begin(void) {
             pcvr_update_eye_projection(eye);
         }
         pcvr_update_view_correction();
+
+        /* Apply F5's world-scale transition only after fresh head/eye poses
+         * are available and this frame's view matrices are coherent. */
+        if (s_vr.fp_scale_pending) {
+            const int fp_active = s_vr.fp_scale_target;
+            float want = fp_active
+                ? (g_pc_settings.vr_fp_world_scale / 1000.0f)
+                : (g_pc_settings.vr_world_scale / 1000.0f);
+            if (want <= 0.0001f) want = fp_active ? 0.025f : 0.01f;
+            s_vr.fp_scale_pending = 0;
+            if (isfinite(want) && want > 0.0001f && want != s_vr.world_scale) {
+                s_vr.world_scale = want;
+                pcvr_update_eye_projection(0);
+                pcvr_update_eye_projection(1);
+                pcvr_update_view_correction();
+                pcvr_log("world scale applied -> %.4f m/unit (%s)",
+                         want, fp_active ? "first person" : "camera");
+            } else {
+                pcvr_log("world scale unchanged; pending request cleared");
+            }
+        }
     }
     XrSpaceVelocity velocity = {XR_TYPE_SPACE_VELOCITY};
     M34 aim, tool_world;
