@@ -206,7 +206,13 @@ public final class Diagnostics {
                     for (Object exit : (List<?>) value) {
                         Class<?> type = exit.getClass();
                         int reason = ((Number) type.getMethod("getReason").invoke(exit)).intValue();
-                        if (reason == 4 || reason == 5) {
+                        int status = ((Number) type.getMethod("getStatus").invoke(exit)).intValue();
+                        // Quest native crashes may be reported by Android as
+                        // REASON_EXIT_SELF (1) with a nonzero signal-style status
+                        // after our fatal-signal handler re-raises the signal.
+                        // Include any nonzero exit status, then require an exact
+                        // PID match below so ordinary/stale captures are rejected.
+                        if (reason == 2 || reason == 4 || reason == 5 || status != 0) {
                             expectedPid = ((Number) type.getMethod("getPid").invoke(exit)).longValue();
                             expectedTimestamp = ((Number) type.getMethod("getTimestamp").invoke(exit)).longValue();
                             break;
