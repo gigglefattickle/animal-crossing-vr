@@ -235,7 +235,7 @@ public final class Diagnostics {
             }
             String contents = new String(bytes, 0, length, "UTF-8");
             java.util.regex.Matcher matcher = java.util.regex.Pattern
-                    .compile("(?m)^pid=0x([0-9a-fA-F]+)\\\\s*$").matcher(contents);
+                    .compile("(?m)^pid=0x([0-9a-fA-F]+)\\s*$").matcher(contents);
             if (!matcher.find()) return "Native capture has no readable PID; not attached to avoid misattribution.\\n";
             long capturedPid = Long.parseLong(matcher.group(1), 16);
             if (capturedPid != expectedPid) {
