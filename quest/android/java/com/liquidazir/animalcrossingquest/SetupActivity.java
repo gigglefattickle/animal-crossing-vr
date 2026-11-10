@@ -472,7 +472,7 @@ public final class SetupActivity extends Activity {
             writer.newLine();
             writer.write("Native fatal-signal capture (registers at fault; not a symbolicated stack):");
             writer.newLine();
-            appendDiagnosticFile(writer, "native-crash.txt", 16 * 1024);
+            writer.write(Diagnostics.readNativeCrashCapture(this));
             writer.write("Native stdout/stderr logs (bounded app-owned logs):");
             writer.newLine();
             appendDiagnosticFile(writer, "quest-stdout.log", 128 * 1024);
