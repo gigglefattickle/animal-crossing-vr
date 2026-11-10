@@ -52,6 +52,8 @@ def main():
     parser.add_argument('--build-dir', type=Path, help='Optional directory under ../build, resolved from the source root')
     parser.add_argument('--jobs', type=int, default=min(os.cpu_count() or 1, 8))
     parser.add_argument('--version', type=int, default=1, help='APK version code')
+    parser.add_argument('--build-type', choices=['Release', 'RelWithDebInfo'], default='Release',
+                        help='Native build type; RelWithDebInfo retains symbols for crash line resolution')
     parser.add_argument('--configure-only', action='store_true')
     parser.add_argument('--no-package', action='store_true')
     parser.add_argument('--dry-run', action='store_true', help='Validate inputs and print commands without writing/building')
@@ -104,7 +106,7 @@ def main():
     commands = [[cmake, '-S', SOURCE/'quest', '-B', build, '-G', 'Ninja',
                  '-DCMAKE_MAKE_PROGRAM='+str(ninja), '-DCMAKE_TOOLCHAIN_FILE='+str(toolchain),
                  '-DANDROID_ABI='+args.abi, '-DANDROID_PLATFORM=android-29',
-                 '-DANDROID_STL=c++_static', '-DCMAKE_BUILD_TYPE=Release',
+                 '-DANDROID_STL=c++_static', '-DCMAKE_BUILD_TYPE='+args.build_type,
                  '-DCMAKE_POLICY_VERSION_MINIMUM=3.5', '-DQUEST_BUILD_GAME='+game,
                  '-DQUEST_SDL_ROOT='+str(deps['SDL']), '-DQUEST_OPENXR_ROOT='+str(deps['OpenXR-SDK'])]]
     if not args.configure_only:
