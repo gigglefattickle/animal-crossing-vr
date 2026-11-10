@@ -1,5 +1,5 @@
 name: Build standalone Quest APK
-# Rebuild after protected-actor culling safeguards.
+# Rebuild after protected-actor culling safeguards and native crash-symbolication updates.
 
 on:
   workflow_dispatch:
